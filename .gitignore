@@ -1,14 +1,3 @@
-/src/deltares_coastalhazardstoolkit.egg-info
-/src/cht/__pycache__
-/src/cht/bathymetry/__pycache__
-/src/cht/meteo/__pycache__
-/src/cht/misc/__pycache__
-/src/cht/sfincs/__pycache__
-/src/cht/tiling/__pycache__
-/src/cht/tide/__pycache__
-/src/cht/hurrywave/__pycache__
-/src/cht/nesting/__pycache__
-/src/cht/model_builder/__pycache__
 __pycache__
 src/hurrywave.egg-info/PKG-INFO
 src/hurrywave.egg-info/requires.txt
@@ -18,3 +7,4 @@ src/hurrywave.egg-info/top_level.txt
 launch.json
 _build
 dist
+cht_hurrywave.egg-info
