@@ -8,9 +8,9 @@ import os
 from pyproj import CRS
 import geopandas as gpd
 
-from cht.model_builder.model_builder import ModelBuilder
-from cht.hurrywave.hurrywave import HurryWave
-import cht.misc.fileops as fo
+from cht_model_builder.model_builder import ModelBuilder
+from cht_hurrywave.hurrywave import HurryWave
+import cht_utils.fileops as fo
 
 class HurryWaveBuilder(ModelBuilder):
     def __init__(self, *args, **kwargs):

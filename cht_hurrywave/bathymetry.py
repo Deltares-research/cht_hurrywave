@@ -6,7 +6,7 @@ Created on Sat Jun 18 09:03:08 2022
 import os
 import numpy as np
 
-from cht.bathymetry.bathymetry_database import bathymetry_database
+from cht_bathymetry.bathymetry_database import bathymetry_database
 
 class HurryWaveBathymetry():
     def __init__(self, hw):

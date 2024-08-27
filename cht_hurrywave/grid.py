@@ -15,7 +15,7 @@ import math
 import time
 import xarray as xr
 from affine import Affine
-from cht.bathymetry.bathymetry_database import bathymetry_database
+from cht_bathymetry.bathymetry_database import bathymetry_database
 import xugrid as xu
 #from .to_xugrid import xug
 import warnings

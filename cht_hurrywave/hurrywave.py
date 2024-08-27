@@ -14,9 +14,6 @@ import math
 from pyproj import CRS
 from pyproj import Transformer
 
-from cht.misc.geometry import RegularGrid
-from cht.misc.geometry import Point
-
 from .input import HurryWaveInput
 from .grid import HurryWaveGrid
 from .mask import HurryWaveMask
@@ -635,7 +632,7 @@ class HurryWave:
         
         from cht.tiling.tiling import deg2num
         from cht.tiling.tiling import num2deg
-        import cht.misc.fileops as fo
+        import cht_utils.fileops as fo
         
         if not zoom_range:
             zoom_range = [0, 13]
@@ -835,13 +832,6 @@ class HurryWave:
 #     def plot(self,ax):
 #         pass
 
-
-class ObservationPoint():
-
-    def __init__(self, x, y, name, crs=None):
-        
-        self.name     = name
-        self.geometry = Point(x, y, crs=crs)
 
                     
 def read_timeseries_file(file_name, ref_date):
