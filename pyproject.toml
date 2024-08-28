@@ -25,4 +25,5 @@ dependencies = [
     "affine",
     "datashader",	
     "cht-utils",
+    "cht-model-builder",
 ]
