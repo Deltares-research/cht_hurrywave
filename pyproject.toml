@@ -23,5 +23,6 @@ dependencies = [
 	"xugrid",
     "toml",
     "affine",
-    "datashader",
+    "datashader",	
+    "cht-utils",
 ]
