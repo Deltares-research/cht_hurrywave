@@ -630,8 +630,8 @@ class HurryWave:
                          z_range=None,
                          dem_names=None):
         
-        from cht.tiling.tiling import deg2num
-        from cht.tiling.tiling import num2deg
+        from cht_tiling.tiling import deg2num
+        from cht_tiling.tiling import num2deg
         import cht_utils.fileops as fo
         
         if not zoom_range:
@@ -660,8 +660,8 @@ class HurryWave:
         if z_range:
             # Only want data in specific range
             # Need to do some other stuff here
-            from cht.bathymetry.bathymetry_database import bathymetry_database
-            from cht.tiling.tiling import get_bathy_on_tile
+            from cht_bathymetry.bathymetry_database import bathymetry_database
+            from cht_tiling.tiling import get_bathy_on_tile
 
             for dem_name in dem_names:
                 dem_crs = []
