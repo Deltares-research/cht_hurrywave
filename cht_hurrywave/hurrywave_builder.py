@@ -10,6 +10,7 @@ import geopandas as gpd
 
 from cht_model_builder.model_builder import ModelBuilder
 from cht_hurrywave.hurrywave import HurryWave
+from cht_hurrywave.waveblocking import WaveBlockingFile
 import cht_utils.fileops as fo
 
 class HurryWaveBuilder(ModelBuilder):
@@ -21,6 +22,7 @@ class HurryWaveBuilder(ModelBuilder):
               depfile = "hurrywave.dep",
               make_mask=True,
               get_bathymetry=True,
+              make_waveblockingfile = False,
               make_tiles=True,
               quiet=False):
 
@@ -99,6 +101,22 @@ class HurryWaveBuilder(ModelBuilder):
                                boundary_zmin=self.setup_config["mask"]["open_boundary_zmin"],
                                boundary_zmax=self.setup_config["mask"]["open_boundary_zmax"])
             hw.grid.write_msk_file()
+
+        if make_waveblockingfile:
+            wbl = WaveBlockingFile(model = hw)
+            wblfile = 'wbl_file.nc'
+
+            wbl.build(hw.grid,
+                    bathymetry_sets= hw.bathymetry,
+                    roughness_sets= [None],
+                    mask = hw.mask,
+                    nr_subgrid_pixels = 50,
+                    file_name=os.path.join(self.model_path, wblfile),
+                    nr_bins=36,
+                    quiet=False,
+                    showcase = False)    
+
+            hw.input.sbgfile = wblfile          
 
         ### Tiles        
         if make_tiles:

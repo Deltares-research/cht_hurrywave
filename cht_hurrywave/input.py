@@ -77,6 +77,8 @@ class HurryWaveInput:
         self.variables.wndfile = None
         self.variables.obsfile = None
         self.variables.ospfile = None
+        self.variables.wblfile = None
+
 
         self.variables.inputformat = "bin"
         self.variables.outputformat = "net"

@@ -18,6 +18,7 @@ from .input import HurryWaveInput
 from .grid import HurryWaveGrid
 from .mask import HurryWaveMask
 from .bathymetry import HurryWaveBathymetry
+from .waveblocking import WaveBlockingFile
 from .boundary_conditions import HurryWaveBoundaryConditions
 from .observation_points import HurryWaveObservationPointsRegular
 from .observation_points import HurryWaveObservationPointsSpectra
@@ -62,6 +63,7 @@ class HurryWave:
         self.boundary_conditions        = HurryWaveBoundaryConditions(self)
         self.observation_points_regular = HurryWaveObservationPointsRegular(self)
         self.observation_points_sp2     = HurryWaveObservationPointsSpectra(self)
+        self.waveblocking               = WaveBlockingFile(self)
         self.obstacle                   = []
 
         # Now read the attribute files
