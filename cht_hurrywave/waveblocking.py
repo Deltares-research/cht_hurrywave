@@ -21,13 +21,14 @@ class WaveBlockingFile:
     
     def build(self,
               bathymetry_sets,
-              file_name="hurrywave.wbl",
-              mask=None,
+              file_name="hurrywave.wbl",   
+              mask = None,  
               nr_bins=36,
               nr_subgrid_pixels=20,
+              z_thres = -20,
               quiet=True,
               progress_bar = False,
-              showcase=False,):  
+              showcase=False):  
 
         grid = self.model.grid
 
@@ -71,6 +72,11 @@ class WaveBlockingFile:
 
         ## Loop through blocks
         ib = 0
+
+        if progress_bar:
+            progress_bar.set_text("               Generating Wave blocking file ...                ")
+            progress_bar.set_maximum(grid.nmax * grid.mmax)
+
         for ii in range(nrbm):
             for jj in range(nrbn):
             
@@ -84,9 +90,7 @@ class WaveBlockingFile:
                     print("--------------------------------------------------------------")
                     print("Processing block " + str(ib + 1) + " of " + str(nrbn*nrbm) + " ...")
 
-                if progress_bar:
-                    progress_bar.set_text("               Generating Wave blocking file ...                ")
-                    progress_bar.set_maximum(nrbm * nrbn)
+               
                     
                 # Now build the pixel matrix
                 x00 = 0.5*dxp + bm0*refi*dyp
@@ -149,23 +153,29 @@ class WaveBlockingFile:
                 # Loop through all active cells in this block
                 for m in range(bm0, bm1):
                     for n in range(bn0, bn1):
-                        
-                        # if self.mask[n, m]<1:
-                        #     # Check if computational cell is active
-                        #     continue
+
+                        if progress_bar:
+                            ib += 1
+                            progress_bar.set_value(ib)
+                            if progress_bar.was_canceled():
+                                return
 
                         
+                        if mask[n, m].values < 1:
+                            # Check if computational cell is active
+                            continue
+
                         # Get elevation in cells
                         nn  = (n - bn0) * refi
                         mm  = (m - bm0) * refi
                         zgc = zg[nn : nn + refi, mm : mm + refi]
-    
-                        z_thres = -20
             
                         if np.nanmax(zgc) < z_thres:
                             # Check if any cells above threshold for island
                             continue
+
                         counter += 1
+                        
                         # Plot elevetaion map
 
                         if showcase:   
@@ -187,7 +197,6 @@ class WaveBlockingFile:
 
                             input("Press Enter to continue...")
 
-
                         # Create a cell object
                         cell = Cell(elevation_map=zgc, threshold_wl=z_thres)
                         angles = np.linspace(0 + 5, 180 + 5, int(nr_bins/2), endpoint=False) 
@@ -208,12 +217,7 @@ class WaveBlockingFile:
                             
                             print("For angles:\n", np.concatenate((angles, angles + 180)))
 
-                        if progress_bar:
-                            ib += 1
-                            progress_bar.set_value(ib)
-                            if progress_bar.was_canceled():
-                                return
-                    
+            
         if not quiet:
             print(f"Total number of cells processed: {counter}")
             print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
