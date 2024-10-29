@@ -15,7 +15,6 @@ import math
 import time
 import xarray as xr
 from affine import Affine
-from cht_bathymetry.bathymetry_database import bathymetry_database
 import xugrid as xu
 #from .to_xugrid import xug
 import warnings
@@ -140,7 +139,12 @@ class HurryWaveGrid:
         file.write(zv.astype(dtype))        
         file.close()
 
-    def get_bathymetry(self, bathymetry_list):
+    def set_bathymetry(self, bathymetry_list, bathymetry_database=None):
+        """Set the bathymetry of the grid."""
+        if bathymetry_database is None:
+            print("No bathymetry database provided")
+            return
+
         z = bathymetry_database.get_bathymetry_on_grid(self.ds["x"].values[:],
                                                        self.ds["y"].values[:],
                                                        self.model.crs,
@@ -188,7 +192,6 @@ class HurryWaveGrid:
             mask[iok] = 1
                         
         # Include polygons
-#        if include_polygon is not None:           
         if len(include_polygon) > 0:
             for ip, polygon in include_polygon.iterrows():
                 inpol = inpolygon(xz, yz, polygon["geometry"])
@@ -196,7 +199,6 @@ class HurryWaveGrid:
                 mask[iok] = 1
 
         # Exclude polygons
-#        if exclude_polygon is not None:
         if len(exclude_polygon) > 0:
             for ip, polygon in exclude_polygon.iterrows():
                 inpol = inpolygon(xz, yz, polygon["geometry"])

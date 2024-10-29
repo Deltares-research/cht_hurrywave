@@ -37,7 +37,7 @@ class HurryWaveInput:
         self.variables.dtmapout = 3600.0
         self.variables.dthisout = 600.0
         self.variables.dtrstout = 0.0
-        self.variables.dtsp2out = 0.0
+        self.variables.dtsp2out = 3600.0
         self.variables.dtmaxout = 0.0
         self.variables.trstout = -999.0
         self.variables.dtwnd = 1800.0
