@@ -59,6 +59,10 @@ class HurryWaveGrid:
             attrs={"_FillValue": 0},
         )
 
+        self.build_xugrid()
+
+        self.get_exterior()
+
     @property
     def transform(self):
         """Return the affine transform of the regular grid."""
@@ -315,6 +319,8 @@ class HurryWaveGrid:
         return gdf
 
     def build_xugrid(self):
+        if self.nmax == 0:
+            return
         tic = time.perf_counter()
         print("Building XuGrid ...")
         x0 = self.x0
@@ -369,18 +375,18 @@ class HurryWaveGrid:
         xxx, indx, irev = np.unique(nm_nodes, return_index=True, return_inverse=True)
         node_x = node_x[indx]
         node_y = node_y[indx]
-        transformer = Transformer.from_crs(self.model.crs,
-                                        3857,
-                                        always_xy=True)
-        node_x_1, node_y_1 = transformer.transform(node_x, node_y)
-        # if self.model.crs == 4326 and node_x_0 < -180.0, subtract 20037508.34 from node_x
-        if self.model.crs.is_geographic:
-            node_x_1[np.where(node_x < -180.0)] -= 2 * 20037508.34
-            node_x_1[np.where(node_x > 180.0)] += 2 * 20037508.34
+        # transformer = Transformer.from_crs(self.model.crs,
+        #                                 3857,
+        #                                 always_xy=True)
+        # node_x_1, node_y_1 = transformer.transform(node_x, node_y)
+        # # if self.model.crs == 4326 and node_x_0 < -180.0, subtract 20037508.34 from node_x
+        # if self.model.crs.is_geographic:
+        #     node_x_1[np.where(node_x < -180.0)] -= 2 * 20037508.34
+        #     node_x_1[np.where(node_x > 180.0)] += 2 * 20037508.34
         for icel in range(nr_cells):
             for j in range(4):
                 face_nodes[j, icel] = irev[face_nodes[j, icel]]
-        nodes = np.transpose(np.vstack((node_x_1, node_y_1)))
+        nodes = np.transpose(np.vstack((node_x, node_y)))
         faces = np.transpose(face_nodes)
         fill_value = -1
         self.xugrid = xu.Ugrid2d(nodes[:, 0], nodes[:, 1], fill_value, faces)
@@ -388,20 +394,69 @@ class HurryWaveGrid:
         toc = time.perf_counter()
         print(f"Done in {toc - tic:0.4f} seconds")
 
+        # # Create a dataframe with line elements
+        # x1 = self.xugrid.edge_node_coordinates[:,0,0]
+        # x2 = self.xugrid.edge_node_coordinates[:,1,0]
+        # y1 = self.xugrid.edge_node_coordinates[:,0,1]
+        # y2 = self.xugrid.edge_node_coordinates[:,1,1]
+        # self.df = pd.DataFrame(dict(x1=x1, y1=y1, x2=x2, y2=y2))
+
+    def get_datashader_dataframe(self):
         # Create a dataframe with line elements
         x1 = self.xugrid.edge_node_coordinates[:,0,0]
         x2 = self.xugrid.edge_node_coordinates[:,1,0]
         y1 = self.xugrid.edge_node_coordinates[:,0,1]
         y2 = self.xugrid.edge_node_coordinates[:,1,1]
+        transformer = Transformer.from_crs(self.model.crs,
+                                            3857,
+                                            always_xy=True)
+        x1, y1 = transformer.transform(x1, y1)
+        x2, y2 = transformer.transform(x2, y2)
         self.df = pd.DataFrame(dict(x1=x1, y1=y1, x2=x2, y2=y2))
 
+    def get_exterior(self):
+        if self.nmax == 0:
+            self.exterior = gpd.GeoDataFrame()
+            return
+        try:            
+            indx = self.xugrid.edge_node_connectivity[self.xugrid.exterior_edges, :]
+            x = self.xugrid.node_x[indx]
+            y = self.xugrid.node_y[indx]
+            # Make linestrings from numpy arrays x and y
+            linestrings = [shapely.LineString(np.column_stack((x[i], y[i]))) for i in range(len(x))]
+            # Merge linestrings
+            merged = shapely.ops.linemerge(linestrings)
+            # Merge polygons
+            polygons = shapely.ops.polygonize(merged)
+    #        polygons = shapely.simplify(polygons, self.dx)
+            self.exterior = gpd.GeoDataFrame(geometry=list(polygons), crs=self.model.crs)
+        except Exception as e:
+            print("Could not get exterior of grid: ", e)
+            self.exterior = gpd.GeoDataFrame()    
 
+    def bounds(self, crs=None, buffer=0.0):
+        """Returns list with bounds (lon1, lat1, lon2, lat2), with buffer (default 0.0) and in any CRS (default : same CRS as model)"""
+        if crs is None:
+            crs = self.crs
+        # Convert exterior gdf to WGS 84
+        lst = self.exterior.to_crs(crs=crs).total_bounds.tolist()
+        dx = lst[2] - lst[0]
+        dy = lst[3] - lst[1]
+        lst[0] = lst[0] - buffer * dx
+        lst[1] = lst[1] - buffer * dy
+        lst[2] = lst[2] + buffer * dx
+        lst[3] = lst[3] + buffer * dy
+        return lst
 
     def map_overlay(self, file_name, xlim=None, ylim=None, color="black", width=800):
         if self.nmax == 0:
             return False
-        if self.xugrid == None:
-            self.build_xugrid()
+        if not hasattr(self, "df"):
+            self.df = None
+        if self.df is None: 
+            self.get_datashader_dataframe()
+        # if self.xugrid == None:
+        #     self.build_xugrid()
         transformer = Transformer.from_crs(4326,
                                     3857,
                                     always_xy=True)
