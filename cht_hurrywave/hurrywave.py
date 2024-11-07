@@ -28,7 +28,7 @@ from .observation_points import HurryWaveObservationPointsSpectra
 
 class HurryWave:
     
-    def __init__(self, load=False, crs=None, path=None, exe_path=None):
+    def __init__(self, load=False, crs=None, path=None, exe_path=None, read_grid_data=True):
         # HurryWave can be initialized in THREE ways
         # hw = HurryWave() -> path is set to CWD
         # hw = HurryWave(path="d:\\temp") -> path is set to path
@@ -66,7 +66,7 @@ class HurryWave:
 
         # Now read the attribute files
         if load:
-            self.read_attribute_files()
+            self.read_attribute_files(read_grid_data=read_grid_data)
 
     def clear_spatial_attributes(self):
         # Clear all spatial data
@@ -75,21 +75,22 @@ class HurryWave:
         self.observation_points_regular = HurryWaveObservationPointsRegular(self)
         self.observation_points_sp2     = HurryWaveObservationPointsSpectra(self)
 
-    def read(self, path=None):
+    def read(self, path=None, read_grid_data=True):
         if path:
             self.path = path
         self.input.read()
         # Get CRS from input file
         self.crs = CRS(self.input.variables.crs_name)
-        self.read_attribute_files()
+        self.read_attribute_files(read_grid_data=read_grid_data)
 
     def read_input_file(self):
         self.input.read()
         # Get CRS from input file
         self.crs = CRS(self.input.variables.crs_name)
 
-    def read_attribute_files(self):
-        self.grid.read()
+    def read_attribute_files(self, read_grid_data=True):
+        if read_grid_data:
+            self.grid.read()
         self.boundary_conditions.read()
         self.observation_points_regular.read()
         self.observation_points_sp2.read()

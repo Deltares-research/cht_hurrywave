@@ -321,8 +321,8 @@ class HurryWaveGrid:
     def build_xugrid(self):
         if self.nmax == 0:
             return
-        tic = time.perf_counter()
-        print("Building XuGrid ...")
+        # tic = time.perf_counter()
+        # print("Building XuGrid ...")
         x0 = self.x0
         y0 = self.y0
         nmax = self.nmax
@@ -391,8 +391,8 @@ class HurryWaveGrid:
         fill_value = -1
         self.xugrid = xu.Ugrid2d(nodes[:, 0], nodes[:, 1], fill_value, faces)
 
-        toc = time.perf_counter()
-        print(f"Done in {toc - tic:0.4f} seconds")
+        # toc = time.perf_counter()
+        # print(f"Done in {toc - tic:0.4f} seconds")
 
         # # Create a dataframe with line elements
         # x1 = self.xugrid.edge_node_coordinates[:,0,0]
