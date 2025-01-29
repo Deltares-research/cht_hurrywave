@@ -149,3 +149,26 @@ class HurryWaveInput:
                     string = f'{key.ljust(20)} = {value}\n'
                 fid.write(string)
         fid.close()
+
+    def print(self):
+        for key, value in self.variables.__dict__.items():
+            if not value is None:
+                if type(value) == "float":
+                    string = f'{key.ljust(20)} = {float(value)}\n'
+                elif type(value) == "int":
+                    string = f'{key.ljust(20)} = {int(value)}\n'
+                elif type(value) == list:
+                    valstr = ""
+                    for v in value:
+                        valstr += str(v) + " "
+                    string = f'{key.ljust(20)} = {valstr}\n'
+                elif isinstance(value, datetime.date):
+                    dstr = value.strftime("%Y%m%d %H%M%S")
+                    string = f'{key.ljust(20)} = {dstr}\n'
+                else:
+                    string = f'{key.ljust(20)} = {value}\n'
+                print(string)
+
+    def update(self, pars):
+        for key in pars:
+            setattr(self.variables, key, pars[key])
