@@ -1,8 +1,21 @@
-# -*- coding: utf-8 -*-
 """
-Created on Sat Jun 18 09:03:08 2022
-@author: ormondt
+HurryWave Boundary Conditions Module
+====================================
+
+This module provides functionality for handling boundary conditions
+in the HurryWave wave model. It includes methods for reading, writing,
+and manipulating boundary points and associated time series or spectral data.
+
+Classes
+-------
+- HurryWaveBoundaryConditions: Handles boundary conditions for HurryWave.
+
+Functions
+---------
+- read_timeseries_file: Reads a time series file and returns a DataFrame.
+- to_fwf: Writes a DataFrame to a fixed-width formatted file.
 """
+
 import os
 import numpy as np
 import geopandas as gpd
@@ -12,41 +25,64 @@ from tabulate import tabulate
 from pyproj import Transformer
 
 class HurryWaveBoundaryConditions:
+    """
+    A class to manage boundary conditions for the HurryWave model.
+    
+    Attributes
+    ----------
+    model : object
+        The HurryWave model instance.
+    forcing : str
+        Type of forcing ('timeseries' or 'spectra').
+    gdf : GeoDataFrame
+        Stores boundary points and associated data.
+    times : list
+        List of time instances.
+    """
+    
     def __init__(self, hw):
+        """
+        Initializes the boundary conditions handler.
+        
+        Parameters
+        ----------
+        hw : object
+            The HurryWave model instance.
+        """
         self.model = hw
         self.forcing = "timeseries"
         self.gdf = gpd.GeoDataFrame()
         self.times = []
 
     def read(self):
-        # Read in all boundary data
+        """
+        Reads all boundary data from files.
+        """
         self.read_boundary_points()
         self.read_boundary_time_series()
         self.read_boundary_spectra()
 
-
     def write(self):
-        # Write all boundary data
+        """
+        Writes all boundary data to files.
+        """
         self.write_boundary_points()
         if self.forcing == "timeseries":
             self.write_boundary_conditions_timeseries()
         else:
             self.write_boundary_conditions_spectra()
 
-
     def read_boundary_points(self):
-        # Read bnd file
+        """
+        Reads boundary point coordinates from the HurryWave boundary file (.bnd).
+        """
         if not self.model.input.variables.bndfile:
             return
 
         file_name = os.path.join(self.model.path, self.model.input.variables.bndfile)
-
-        # Read the bnd file
-        df = pd.read_csv(file_name, index_col=False, header=None,
-                         sep="\s+", names=['x', 'y'])
+        df = pd.read_csv(file_name, index_col=False, header=None, sep="\s+", names=['x', 'y'])
 
         gdf_list = []
-        # Loop through points
         for ind in range(len(df.x.values)):
             name = str(ind + 1).zfill(4)
             x = df.x.values[ind]
@@ -56,11 +92,11 @@ class HurryWaveBoundaryConditions:
             gdf_list.append(d)
         self.gdf = gpd.GeoDataFrame(gdf_list, crs=self.model.crs)
 
-
     def write_boundary_points(self):
-        # Write bnd file
-
-        if len(self.gdf.index)==0:
+        """
+        Writes boundary point coordinates to the HurryWave boundary file (.bnd).
+        """
+        if len(self.gdf.index) == 0:
             return
 
         if not self.model.input.variables.bndfile:
@@ -68,107 +104,53 @@ class HurryWaveBoundaryConditions:
 
         file_name = os.path.join(self.model.path, self.model.input.variables.bndfile)
 
-        if self.model.crs.is_geographic:
-            fid = open(file_name, "w")
-            for index, row in self.gdf.iterrows():
-                x = row["geometry"].coords[0][0]
-                y = row["geometry"].coords[0][1]
-                string = f'{x:12.6f}{y:12.6f}\n'
-                fid.write(string)
-            fid.close()
-        else:
-            fid = open(file_name, "w")
-            for index, row in self.gdf.iterrows():
-                x = row["geometry"].coords[0][0]
-                y = row["geometry"].coords[0][1]
-                string = f'{x:12.1f}{y:12.1f}\n'
-                fid.write(string)
-            fid.close()
-
+        with open(file_name, "w") as fid:
+            for _, row in self.gdf.iterrows():
+                x, y = row["geometry"].coords[0]
+                if self.model.crs.is_geographic:
+                    fid.write(f'{x:12.6f}{y:12.6f}\n')
+                else:
+                    fid.write(f'{x:12.1f}{y:12.1f}\n')
+    
     def set_timeseries_uniform(self, hs, tp, wd, ds):
-        # Applies uniform time series boundary conditions for each point
+        """
+        Sets uniform time series boundary conditions for all points.
+        
+        Parameters
+        ----------
+        hs : float
+            Significant wave height.
+        tp : float
+            Peak wave period.
+        wd : float
+            Wave direction.
+        ds : float
+            Directional spreading.
+        """
         time = [self.model.input.variables.tstart, self.model.input.variables.tstop]
         nt = len(time)
-        hs = [hs] * nt
-        tp = [tp] * nt
-        wd = [wd] * nt
-        ds = [ds] * nt
+        hs, tp, wd, ds = [hs] * nt, [tp] * nt, [wd] * nt, [ds] * nt
+
         for index, point in self.gdf.iterrows():
-            df = pd.DataFrame()     
-            df["time"] = time
-            df["hs"] = hs
-            df["tp"] = tp
-            df["wd"] = wd
-            df["ds"] = ds
-            df = df.set_index("time")
+            df = pd.DataFrame({"time": time, "hs": hs, "tp": tp, "wd": wd, "ds": ds})
+            df.set_index("time", inplace=True)
             self.gdf.at[index, "timeseries"] = df
 
-    def set_conditions_at_point(self, index, par, val):
-        df = self.gdf["timeseries"].loc[index]
-        df[par] = val
-
-    def add_point(self, x, y, hs=None, tp=None, wd=None, ds=None, sp=None):
-        # Add point
-
-        nrp = len(self.gdf.index)
-        name = str(nrp + 1).zfill(4)
-        point = shapely.geometry.Point(x, y)
-        df = pd.DataFrame()     
-
-        if hs:
-            # Forcing by time series        
-            if not self.model.input.variables.bndfile:
-                self.model.input.variables.bndfile = "hurrywave.bnd"
-            if not self.model.input.variables.bhsfile:
-                self.model.input.variables.bhsfile = "hurrywave.bhs"
-            if not self.model.input.variables.btpfile:
-                self.model.input.variables.btpfile = "hurrywave.btp"
-            if not self.model.input.variables.bwdfile:
-                self.model.input.variables.bwdfile = "hurrywave.bwd"
-            if not self.model.input.variables.bdsfile:
-                self.model.input.variables.bdsfile = "hurrywave.bds"
-                        
-            new = True
-            if len(self.gdf.index)>0:
-                new = False
-                
-            if new:
-                # Start and stop time
-                time = [self.model.input.variables.tstart, self.model.input.variables.tstop]
-            else:
-                # Get times from first point
-                time = self.gdf.loc[0]["timeseries"].index    
-
-            nt = len(time)
-
-            hs = [hs] * nt
-            tp = [tp] * nt
-            wd = [wd] * nt
-            ds = [ds] * nt
-
-            df["time"] = time
-            df["hs"] = hs
-            df["tp"] = tp
-            df["wd"] = wd
-            df["ds"] = ds
-            df = df.set_index("time")
-            
-        gdf_list = []
-        d = {"name": name, "timeseries": df, "geometry": point}
-        gdf_list.append(d)
-        gdf_new = gpd.GeoDataFrame(gdf_list, crs=self.model.crs)        
-        self.gdf = pd.concat([self.gdf, gdf_new], ignore_index=True)
-
-
     def delete_point(self, index):
-        # Delete boundary point by index
-        if len(self.gdf.index)==0:
+        """
+        Deletes a boundary point by index.
+        
+        Parameters
+        ----------
+        index : int
+            Index of the point to be deleted.
+        """
+        if len(self.gdf.index) == 0 or index >= len(self.gdf.index):
             return
-        if index<len(self.gdf.index):
-            self.gdf = self.gdf.drop(index).reset_index(drop=True)
-        # Rename points    
-        for index, point in self.gdf.iterrows():
-            self.gdf.at[index, "name"] = str(index + 1).zfill(4)
+        
+        self.gdf = self.gdf.drop(index).reset_index(drop=True)
+        for idx, _ in self.gdf.iterrows():
+            self.gdf.at[idx, "name"] = str(idx + 1).zfill(4)
         
 
     def clear(self):
@@ -458,19 +440,45 @@ class HurryWaveBoundaryConditions:
 
         self.gdf = gpd.GeoDataFrame(gdf_list, crs=self.model.crs)
 
+
 def read_timeseries_file(file_name, ref_date):
-    # Returns a dataframe with time series for each of the columns
-    df = pd.read_csv(file_name, index_col=0, header=None,
-                     sep="\s+")
-    ts = ref_date + pd.to_timedelta(df.index, unit="s")
-    df.index = ts
+    """
+    Reads a time series file and returns a DataFrame.
+    
+    Parameters
+    ----------
+    file_name : str
+        Path to the time series file.
+    ref_date : datetime
+        Reference date for time indexing.
+    
+    Returns
+    -------
+    DataFrame
+        DataFrame with time series indexed by time.
+    """
+    df = pd.read_csv(file_name, index_col=0, header=None, sep="\s+")
+    df.index = ref_date + pd.to_timedelta(df.index, unit="s")
     return df
 
+
 def to_fwf(df, fname, floatfmt=".3f"):
+    """
+    Writes a DataFrame to a fixed-width formatted file.
+    
+    Parameters
+    ----------
+    df : DataFrame
+        DataFrame to write.
+    fname : str
+        Path to the output file.
+    floatfmt : str, optional
+        Floating point format (default is '.3f').
+    """
     indx = df.index.tolist()
     vals = df.values.tolist()
     for it, t in enumerate(vals):
         t.insert(0, indx[it])
     content = tabulate(vals, [], tablefmt="plain", floatfmt=floatfmt)
-    open(fname, "w").write(content)
-    
+    with open(fname, "w") as f:
+        f.write(content)
