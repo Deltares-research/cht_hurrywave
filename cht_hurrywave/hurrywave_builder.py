@@ -73,7 +73,7 @@ class HurryWaveBuilder(ModelBuilder):
 
         ### Bathymetry
         if get_bathymetry:
-            hw.grid.get_bathymetry(self.bathymetry_list)
+            hw.grid.set_bathymetry(self.bathymetry_list)
             hw.grid.write_dep_file()
         
         ### Mask
