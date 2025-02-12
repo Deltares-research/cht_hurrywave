@@ -6,7 +6,7 @@ Created on Sat Jun 18 09:03:08 2022
 import os
 import numpy as np
 
-from cht_bathymetry.bathymetry_database import bathymetry_database
+# from cht_bathymetry.bathymetry_database import bathymetry_database
 from cht_utils.misc_tools import interp3, interp2
 
 class HurryWaveBathymetry():
