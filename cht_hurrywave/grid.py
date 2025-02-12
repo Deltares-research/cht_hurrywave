@@ -161,6 +161,54 @@ class HurryWaveGrid:
         )
         self.ds["bed_level"] = da
 
+    def set_bathymetry_from_other_source(self, xb, yb, zb, rectilinearSourceData=True, fill_value=999):
+        xz, yz = self.ds.x.values, self.ds.x.values
+        zz = np.full((grid.nmax, grid.mmax), np.nan)
+
+        if rectilinearSourceData:
+            if not np.isnan(zb).all():
+                zz1     = interp2_KM(xb, yb, zb, xz, yz)
+                isn     = np.where(np.isnan(zz))
+                zz[isn] = zz1[isn]
+        else:
+            zz1     = interp3(xb, yb, zb, xz, yz)
+            isn     = np.where(np.isnan(zz))
+            zz[isn] = zz1[isn]
+
+        zz[np.where(np.isnan(zz))] = fill_value
+
+        da = xr.DataArray(
+            data=zz,
+            coords=self.coordinates,
+            dims=("n", "m"),
+            attrs={"_FillValue": -99999.0},
+        )
+        self.ds["bed_level"] = da
+
+    def set_bathymetry_from_other_source2(self, xb, yb, zb, rectilinearSourceData=True, fill_value=999):
+        xz, yz = self.ds.x.values, self.ds.y.values
+        zz = np.full((grid.nmax, grid.mmax), np.nan)
+
+        if rectilinearSourceData:
+            if not np.isnan(zb).all():
+                zz1     = interp2_KM(xb, yb, zb, xz, yz)
+                isn     = np.where(np.isnan(zz))
+                zz[isn] = zz1[isn]
+        else:
+            zz1     = interp2(xb, yb, zb, xz, yz)
+            isn     = np.where(np.isnan(zz))
+            zz[isn] = zz1[isn]
+
+        zz[np.where(np.isnan(zz))] = fill_value
+
+        da = xr.DataArray(
+            data=zz,
+            coords=self.coordinates,
+            dims=("n", "m"),
+            attrs={"_FillValue": -99999.0},
+        )
+        self.ds["bed_level"] = da
+
     def build_mask(self,
               zmin=99999.0,
               zmax=-99999.0,
@@ -232,7 +280,6 @@ class HurryWaveGrid:
 
         self.ds["mask"].values = mask                
 
-
     def mask_to_gdf(self, option="all"):
         xz = self.ds["x"].values[:]
         yz = self.ds["y"].values[:]
@@ -262,39 +309,6 @@ class HurryWaveGrid:
             gdf = gpd.GeoDataFrame(gdf_list)
 
         return gdf
-
-    # def build(self):
-    #     self.x0 = self.model.input.variables.x0
-    #     self.y0 = self.model.input.variables.y0
-    #     self.dx = self.model.input.variables.dx
-    #     self.dy = self.model.input.variables.dy
-    #     self.nmax = self.model.input.variables.nmax
-    #     self.mmax = self.model.input.variables.mmax
-    #     self.rotation = self.model.input.variables.rotation
-
-    #     cosrot = np.cos(self.rotation * np.pi / 180)
-    #     sinrot = np.sin(self.rotation * np.pi / 180)
-
-    #     # Corners
-    #     xx = np.linspace(0.0,
-    #                      self.mmax * self.dx,
-    #                      num=self.mmax + 1)
-    #     yy = np.linspace(0.0,
-    #                      self.nmax * self.dy,
-    #                      num=self.nmax + 1)
-    #     xg0, yg0 = np.meshgrid(xx, yy)
-    #     self.xg = self.x0 + xg0 * cosrot - yg0 * sinrot
-    #     self.yg = self.y0 + xg0 * sinrot + yg0 * cosrot
-
-    #     xx = np.linspace(0.5 * self.dx,
-    #                      self.mmax * self.dx - 0.5 * self.dx,
-    #                      num=self.mmax)
-    #     yy = np.linspace(0.5 * self.dy,
-    #                      self.nmax * self.dy - 0.5 * self.dy,
-    #                      num=self.nmax)
-    #     xg0, yg0 = np.meshgrid(xx, yy)
-    #     self.xz = self.x0 + xg0 * cosrot - yg0 * sinrot
-    #     self.yz = self.y0 + xg0 * sinrot + yg0 * cosrot
 
     def to_gdf(self):
         if self.nmax == 0:
