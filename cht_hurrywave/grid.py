@@ -24,6 +24,9 @@ import datashader as ds
 import datashader.transfer_functions as tf
 from datashader.utils import export_image
 
+from cht_utils.misc_tools import interp2, interp3
+
+
 class HurryWaveGrid:
     """
     A class to handle the creation, manipulation, and processing of a regular grid 
@@ -224,9 +227,9 @@ class HurryWaveGrid:
         )
         self.ds["bed_level"] = da
 
-    def set_bathymetry_from_other_source2(self, xb, yb, zb, rectilinearSourceData=True, fill_value=999):
+    def set_bathymetry_from_other_source2(self, xb, yb, zb, rectilinearSourceData=False, fill_value=999):
         xz, yz = self.ds.x.values, self.ds.y.values
-        zz = np.full((grid.nmax, grid.mmax), np.nan)
+        zz = np.full((self.nmax, self.mmax), np.nan)
 
         if rectilinearSourceData:
             if not np.isnan(zb).all():
