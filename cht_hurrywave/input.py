@@ -12,6 +12,34 @@ class Variables:
         pass
 
 class HurryWaveInput:
+    """
+    A class to handle the input configuration for the HurryWave model. This class manages the 
+    initialization, reading, writing, and updating of input parameters used in the model simulation.
+
+    The class provides functionality to:
+
+    - Initialize default values for various model parameters.
+    - Read input values from an existing "hurrywave.inp" file and store them as model variables.
+    - Write the current model configuration to the "hurrywave.inp" file.
+    - Print the current configuration for inspection.
+    - Update specific parameters in the model configuration.
+
+    Key Methods:
+
+    - __init__:
+         Initializes the input parameters with default values.
+    - read:
+         Reads the "hurrywave.inp" file and updates the model parameters.
+    - write: 
+         Writes the current input parameters to the "hurrywave.inp" file.
+    - print:
+         Prints the current configuration of the model's input parameters to the console.
+    - update:
+         Updates the model's input parameters with new values.
+
+    Arguments:
+    - hw: The HurryWave model object to which the input parameters belong.
+    """
     def __init__(self, hw):
 
         self.model = hw

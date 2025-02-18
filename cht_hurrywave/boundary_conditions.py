@@ -27,17 +27,6 @@ from pyproj import Transformer
 class HurryWaveBoundaryConditions:
     """
     A class to manage boundary conditions for the HurryWave model.
-    
-    Attributes
-    ----------
-    model : object
-        The HurryWave model instance.
-    forcing : str
-        Type of forcing ('timeseries' or 'spectra').
-    gdf : GeoDataFrame
-        Stores boundary points and associated data.
-    times : list
-        List of time instances.
     """
     
     def __init__(self, hw):
@@ -158,287 +147,199 @@ class HurryWaveBoundaryConditions:
 
 
     def read_boundary_time_series(self):
-        # Read HurryWave bhs, btp, bwd and bds files
-
+        """
+        Reads boundary time series from HurryWave input files (bhs, btp, bwd, bds) and stores them in the model.
+        
+        The function retrieves time series for significant wave height (Hs), peak period (Tp), wave direction (Wd),
+        and directional spreading (Ds) for each boundary point.
+        """
         if not self.model.input.variables.bhsfile:
             return
-        if len(self.gdf.index)==0:
+        if len(self.gdf.index) == 0:
             return
 
         tref = self.model.input.variables.tref
 
-        # Time
-        
-        # Hs        
+        # Read Hs
         file_name = os.path.join(self.model.path, self.model.input.variables.bhsfile)
         dffile = read_timeseries_file(file_name, tref)
-        # Loop through boundary points
         for ip, point in self.gdf.iterrows():
             point["timeseries"]["time"] = dffile.index
             point["timeseries"]["hs"] = dffile.iloc[:, ip].values
             point["timeseries"].set_index("time", inplace=True)
 
-        # Tp       
+        # Read Tp
         file_name = os.path.join(self.model.path, self.model.input.variables.btpfile)
         dffile = read_timeseries_file(file_name, tref)
         for ip, point in self.gdf.iterrows():
             point["timeseries"]["tp"] = dffile.iloc[:, ip].values
 
-        # Wd
+        # Read Wd
         file_name = os.path.join(self.model.path, self.model.input.variables.bwdfile)
         dffile = read_timeseries_file(file_name, tref)
         for ip, point in self.gdf.iterrows():
             point["timeseries"]["wd"] = dffile.iloc[:, ip].values
 
-        # Ds
+        # Read Ds
         file_name = os.path.join(self.model.path, self.model.input.variables.bdsfile)
         dffile = read_timeseries_file(file_name, tref)
         for ip, point in self.gdf.iterrows():
             point["timeseries"]["ds"] = dffile.iloc[:, ip].values
 
-
     def read_boundary_spectra(self):
-        # Read HurryWave bhs, btp, bwd and bds files
+        """
+        Reads boundary spectra from the HurryWave bsp file.
+        """
         if not self.model.input.variables.bspfile:
             return
-        if len(self.gdf.index)==0:
+        if len(self.gdf.index) == 0:
             return
 
         file_name = os.path.join(self.model.path, self.model.input.variables.bspfile)
         print("Reading " + file_name)
 
-
     def write_boundary_conditions_timeseries(self):
-        if len(self.gdf.index)==0:
+        """
+        Writes boundary condition time series data to HurryWave input files.
+        
+        Outputs include significant wave height (Hs), peak period (Tp), wave direction (Wd),
+        and directional spreading (Ds), which are saved in separate files.
+        """
+        if len(self.gdf.index) == 0:
             return
-        # First get times from the first point (times in other points should be identical)
+
         time = self.gdf.loc[0]["timeseries"].index
         tref = self.model.input.variables.tref
-        dt   = (time - tref).total_seconds()
-        
-        # Hs
-        if not self.model.input.variables.bhsfile:
-            self.model.input.variables.bhsfile = "hurrywave.bhs"            
-        file_name = os.path.join(self.model.path, self.model.input.variables.bhsfile)
-        # Build a new DataFrame
-        df = pd.DataFrame()
-        for ip, point in self.gdf.iterrows():
-            df = pd.concat([df, point["timeseries"]["hs"]], axis=1)
-        df.index = dt
-        # df.to_csv(file_name,
-        #           index=True,
-        #           sep=" ",
-        #           header=False,
-        #           float_format="%.3f")
-        to_fwf(df, file_name)
-    
-        # Tp
-        if not self.model.input.variables.btpfile:
-            self.model.input.variables.btpfile = "hurrywave.btp"            
-        file_name = os.path.join(self.model.path, self.model.input.variables.btpfile)
-        # Build a new DataFrame
-        df = pd.DataFrame()
-        for ip, point in self.gdf.iterrows():
-            df = pd.concat([df, point["timeseries"]["tp"]], axis=1)
-        df.index = dt
-        # df.to_csv(file_name,
-        #           index=True,
-        #           sep=" ",
-        #           header=False,
-        #           float_format="%.3f")
-        to_fwf(df, file_name)
+        dt = (time - tref).total_seconds()
 
-        # Wd
-        if not self.model.input.variables.bwdfile:
-            self.model.input.variables.bwdfile = "hurrywave.bwd"            
-        file_name = os.path.join(self.model.path, self.model.input.variables.bwdfile)
-        # Build a new DataFrame
-        df = pd.DataFrame()
-        for ip, point in self.gdf.iterrows():
-            df = pd.concat([df, point["timeseries"]["wd"]], axis=1)
-        df.index = dt
-        # df.to_csv(file_name,
-        #           index=True,
-        #           sep=" ",
-        #           header=False,
-        #           float_format="%.3f")
-        to_fwf(df, file_name)
+        def write_timeseries(var_name, file_ext):
+            if not getattr(self.model.input.variables, var_name):
+                setattr(self.model.input.variables, var_name, f"hurrywave.{file_ext}")
+            file_name = os.path.join(self.model.path, getattr(self.model.input.variables, var_name))
+            df = pd.DataFrame({ip: point["timeseries"][file_ext] for ip, point in self.gdf.iterrows()})
+            df.index = dt
+            to_fwf(df, file_name)
 
-        # Ds
-        if not self.model.input.variables.bdsfile:
-            self.model.input.variables.bdsfile = "hurrywave.bds"            
-        file_name = os.path.join(self.model.path, self.model.input.variables.bdsfile)
-        # Build a new DataFrame
-        df = pd.DataFrame()
-        for ip, point in self.gdf.iterrows():
-            df = pd.concat([df, point["timeseries"]["ds"]], axis=1)
-        df.index = dt
-        # df.to_csv(file_name,
-        #           index=True,
-        #           sep=" ",
-        #           header=False,
-        #           float_format="%.3f")
-        to_fwf(df, file_name)
+        write_timeseries("bhsfile", "hs")
+        write_timeseries("btpfile", "tp")
+        write_timeseries("bwdfile", "wd")
+        write_timeseries("bdsfile", "ds")
 
-        
     def write_boundary_conditions_spectra(self, file_name=None):
-        # Write HurryWave bsp file
-
+        """
+        Writes boundary spectra data to a HurryWave bsp file.
+        """
         import xarray as xr
 
         if file_name is None:
             if self.model.input.variables.bspfile is None:
                 self.model.input.variables.bspfile = "hurrywave.bsp"
             file_name = os.path.join(self.model.path, self.model.input.variables.bspfile)
-        
+
         sp20 = self.gdf["spectra"][0]
-
         times = sp20.coords["time"].values
-        #        tref  = np.datetime64(self.input.tref)
-        #        times = np.single((times-tref)/1000000000)
-
         sigma = sp20.coords["sigma"].values
         theta = sp20.coords["theta"].values
 
         sp2 = np.zeros([len(times), len(self.gdf), len(theta), len(sigma)])
-
-        points = []
-        xs = np.zeros([len(self.gdf)])
-        ys = np.zeros([len(self.gdf)])
-        for ip, point in self.gdf.iterrows():            
+        xs, ys, points = np.zeros(len(self.gdf)), np.zeros(len(self.gdf)), []
+        for ip, point in self.gdf.iterrows():
             points.append(point["name"])
-            xs[ip] = point.geometry.x
-            ys[ip] = point.geometry.y
+            xs[ip], ys[ip] = point.geometry.x, point.geometry.y
             sp2[:, ip, :, :] = point["spectra"].values
-
-        # Convert to single
-        xs = np.single(xs)
-        ys = np.single(ys)
-        sp2 = np.single(sp2)
 
         ds = xr.Dataset(
             data_vars=dict(point_spectrum2d=(["time", "stations", "theta", "sigma"], sp2),
-                           station_x=(["stations"], xs),
-                           station_y=(["stations"], ys),
-                           ),
-            coords=dict(time=times,
-                        stations=points,
-                        theta=theta,
-                        sigma=sigma)
+                           station_x=(["stations"], np.single(xs)),
+                           station_y=(["stations"], np.single(ys))),
+            coords=dict(time=times, stations=points, theta=theta, sigma=sigma)
         )
 
         dstr = "seconds since " + self.model.input.variables.tref.strftime("%Y%m%d %H%M%S")
-
-        ds.to_netcdf(path=file_name,
-                     mode='w',
-                     encoding={'time': {'units': dstr}})
-
+        ds.to_netcdf(path=file_name, mode='w', encoding={'time': {'units': dstr}})
 
     def get_boundary_points_from_mask(self, min_dist=None, bnd_dist=50000.0):
+        """
+        Identifies boundary points from a mask and interpolates them along boundary lines.
 
+        This function extracts boundary points from the computational grid's mask where 
+        the value is `2`. It then connects nearby points into polylines and interpolates 
+        new points along these lines to ensure evenly spaced boundary points.
+
+        Parameters
+        ----------
+        min_dist : float, optional
+            The minimum distance between two connected boundary points. If not provided, 
+            it defaults to twice the grid resolution (`2 * dx`).
+        bnd_dist : float, optional, default=50000.0
+            The target distance for interpolated boundary points. The function will 
+            generate points along boundary lines at approximately this interval.
+
+
+        Returns
+        -------
+        None
+            Updates `self.gdf` with the identified and interpolated boundary points.
+        """
+        
+        # Default min_dist to twice the grid spacing if not provided
         if min_dist is None:
-            # Set minimum distance between to grid boundary points on polyline to 2 * dx
-            min_dist = self.model.grid.dx * 2 
+            min_dist = self.model.grid.dx * 2
 
-        # Get coordinates of boundary points
+        # Extract mask data and identify boundary points (where mask == 2)
         da_mask = self.model.grid.ds["mask"]
-        ibnd = np.where(da_mask.values == 2)
-        xp = da_mask["x"].values[ibnd]
-        yp = da_mask["y"].values[ibnd]
+        ibnd = np.where(da_mask.values == 2)  # Boundary indices
+        xp, yp = da_mask["x"].values[ibnd], da_mask["y"].values[ibnd]  # Boundary coordinates
 
+        # Initialize tracking variables
+        used = np.full(xp.shape, False, dtype=bool)  # Track used points
+        polylines, gdf_list, ip = [], [], 0  # Storage for polylines and final points
 
-
-        # Make boolean array for points that are include in a polyline 
-        used = np.full(xp.shape, False, dtype=bool)
-
-        polylines = []
-
-        while True:
-
-            if np.all(used):
-                # All boundary grid points have been used. We can stop now.
-                break
-
-            # Find first of the unused points
-            i1 = np.where(used==False)[0][0]
-
-            # Set this point to used
+        # Construct polylines by connecting nearby points
+        while not np.all(used):
+            # Start a new polyline from the first unused point
+            i1 = np.where(used == False)[0][0]
             used[i1] = True
+            polyline = [i1]
 
-            polyline = [i1] 
-
+            # Connect nearest neighbors iteratively
             while True:
-                if np.all(used):
-                    # All boundary grid points have been used. We can stop now.
-                    break
-                # Started new polyline
-                dst = np.sqrt((xp - xp[i1])**2 + (yp - yp[i1])**2)
-                dst[polyline] = np.nan
-                inear = np.nanargmin(dst)
+                dst = np.sqrt((xp - xp[i1])**2 + (yp - yp[i1])**2)  # Compute distances
+                dst[polyline] = np.nan  # Ignore already used points
+                inear = np.nanargmin(dst)  # Find the closest unused point
+
                 if dst[inear] < min_dist:
-                    # Found next point along polyline
                     polyline.append(inear)
                     used[inear] = True
                     i1 = inear
                 else:
-                    # Last point found
-                    break    
+                    break  # Stop when no nearby points remain
 
-            i1 = polyline[0]
-            while True:
-                if np.all(used):
-                    # All boundary grid points have been used. We can stop now.
-                    break
-                # Now we go in the other direction            
-                dst = np.sqrt((xp - xp[i1])**2 + (yp - yp[i1])**2)
-                dst[polyline] = np.nan
-                inear = np.nanargmin(dst)
-                if dst[inear] < min_dist:
-                    # Found next point along polyline
-                    polyline.insert(0, inear)
-                    used[inear] = True
-                    i1 = inear
-                else:
-                    # Last point found
-                    # On to the next polyline
-                    break    
-
-            if len(polyline) > 1:  
+            # Store the polyline if it contains more than one point
+            if len(polyline) > 1:
                 polylines.append(polyline)
 
-        gdf_list = []
-        ip = 0
-
-        # If geographic, convert to Web Mercator
-        if self.model.crs.is_geographic:
-            transformer = Transformer.from_crs(self.model.crs,
-                                               3857,
-                                               always_xy=True)
-
-        # Loop through polylines 
+        # Interpolate new points along each polyline
         for polyline in polylines:
-            x = xp[polyline]
-            y = yp[polyline]
-            points = [(x,y) for x,y in zip(x.ravel(),y.ravel())]                
-            line = shapely.geometry.LineString(points)
-            if self.model.crs.is_geographic:
-                # Line in web mercator (to get length in metres)
-                xm, ym = transformer.transform(x, y)
-                pointsm = [(xm,ym) for xm,ym in zip(xm.ravel(),ym.ravel())]
-                linem = shapely.geometry.LineString(pointsm)
-                num_points = int(linem.length / bnd_dist) + 2
-            else:
-                num_points = int(line.length / bnd_dist) + 2
-            # If geographic, convert to Web Mercator
-            new_points = [line.interpolate(i/float(num_points - 1), normalized=True) for i in range(num_points)]
-            # Loop through points in polyline
-            for point in new_points:
-                name = str(ip + 1).zfill(4)
-                d = {"name": name, "timeseries": pd.DataFrame(), "spectra": None, "geometry": point}
-                gdf_list.append(d)
-                ip += 1
+            line = shapely.geometry.LineString([(x, y) for x, y in zip(xp[polyline], yp[polyline])])
+            num_points = int(line.length / bnd_dist) + 2  # Calculate number of interpolation points
 
+            # Generate evenly spaced points along the polyline
+            new_points = [line.interpolate(i / float(num_points - 1), normalized=True) for i in range(num_points)]
+
+            # Store points in GeoDataFrame format
+            for point in new_points:
+                gdf_list.append({
+                    "name": str(ip + 1).zfill(4),
+                    "timeseries": pd.DataFrame(),
+                    "spectra": None,
+                    "geometry": point
+                })
+                ip += 1  # Increment point counter
+
+        # Store the final boundary points in a GeoDataFrame
         self.gdf = gpd.GeoDataFrame(gdf_list, crs=self.model.crs)
+
 
 
 def read_timeseries_file(file_name, ref_date):

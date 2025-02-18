@@ -23,6 +23,41 @@ from .observation_points import HurryWaveObservationPointsRegular
 from .observation_points import HurryWaveObservationPointsSpectra
 
 class HurryWave:
+
+    """
+    A class representing the HurryWave model, used for simulating wave dynamics, 
+    boundary conditions, and observation points.
+
+    The class provides functionality to:
+    - Initialize and configure model inputs, grid, boundary conditions, and observation points.
+    - Read and write model data and input files.
+    - Manage spatial data, including grid coordinates, boundaries, and bathymetry.
+    - Read and process time-series and map outputs from the model.
+    - Generate tiling indices for specific zoom levels.
+
+    Key Methods:
+    
+    - __init__: 
+        Initializes the HurryWave model with optional configuration settings for path, CRS, and exe path.
+    - read_input_file: 
+        Reads the input file and sets up the model's configuration.
+    - clear_spatial_attributes: 
+        Clears spatial data related to grid, boundary conditions, and observation points.
+    - write:
+         Writes input data and attribute files to disk.
+    - read_timeseries_output: 
+        Reads model output for time-series data, such as wave height or direction.
+    - read_map_output_max: 
+        Reads and processes maximum values from model map outputs.
+    - grid_coordinates: 
+        Computes grid coordinates for the model, either in grid or corrected format.
+    - bounding_box: 
+        Returns the spatial extent (bounding box) of the model grid.
+    - outline:
+         Returns the outline of the model domain.
+    - make_index_tiles:
+         Generates and writes index tiles for the model grid at specified zoom levels.
+    """
     
     def __init__(self, load=False, crs=None, path=None, exe_path=None, read_grid_data=True):
         # HurryWave can be initialized in THREE ways
