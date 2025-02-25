@@ -45,5 +45,6 @@ bwdfile              = hurrywave.wd
 bdsfile              = hurrywave.ds
 amufile              = hurrywave.amu
 amvfile              = hurrywave.amv
+wndfile              = hurrywave.wnd
 inputformat          = bin
 outputformat         = net
