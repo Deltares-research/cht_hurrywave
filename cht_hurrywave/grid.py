@@ -24,7 +24,16 @@ import datashader as ds
 import datashader.transfer_functions as tf
 from datashader.utils import export_image
 
+from cht_utils.misc_tools import interp2, interp3
+
+
 class HurryWaveGrid:
+    """
+    A class to handle the creation, manipulation, and processing of a regular grid 
+    for a wave model. This includes reading, writing, and manipulating grid variables such as mask and bed level.
+
+    """
+
     def __init__(self, model):
         # RegularGrid contains coordinates, mask, bed_level, obstacles
         self.model         = model
@@ -32,6 +41,22 @@ class HurryWaveGrid:
         self.build()
 
     def build(self):
+        """
+        Constructs the grid by initializing various attributes and creating essential data arrays.
+
+        This method performs the following actions:
+
+        1. Initializes grid parameters from the model input, such as the grid origin (x0, y0), cell sizes (dx, dy), grid dimensions (nmax, mmax), and possible rotation angle.
+
+        2. Creates an xarray Dataset (`self.ds`) to store the grid data, which includes `bed_level`: A DataArray representing the bed elevation levels, initialized to a default value of -99999.0 for all grid points and `mask`: A DataArray representing the grid mask, initialized to 0 (indicating valid grid points).
+
+        3. The grid's `bed_level` and `mask` arrays are both set to default values with the shape defined by `nmax` and `mmax`, and are associated with coordinates specified in `self.coordinates`.
+
+        4. Calls `build_xugrid()` to set up the grid layout, which may include applying transformations or rotations based on the input parameters.
+
+        5. Calls `get_exterior()` to handle the grid's exterior conditions or boundaries, such as identifying boundary cells and potentially setting up external interactions or constraints.
+        
+        """
 
         self.x0            = self.model.input.variables.x0
         self.y0            = self.model.input.variables.y0
@@ -105,7 +130,7 @@ class HurryWaveGrid:
                                                  0.0)
 
     def read_map(self, name, file_name, dtype, fill_value):
-        """Read one of the grid variables of the SFINCS model map from a binary file."""
+        """Read one of the grid variables of the HurryWave model map from a binary file."""
         data = np.fromfile(file_name, dtype=dtype)
         data = np.reshape(data, (self.mmax, self.nmax)).transpose()
         da = xr.DataArray(
@@ -144,7 +169,24 @@ class HurryWaveGrid:
         file.close()
 
     def set_bathymetry(self, bathymetry_list, bathymetry_database=None):
-        """Set the bathymetry of the grid."""
+        """
+        Method
+        -------
+        Set the bathymetry (bed elevation levels) for the grid based on the provided bathymetry data.
+
+        This method updates the `bed_level` data array in the grid with the bathymetry values obtained
+        from the given `bathymetry_database`. If no bathymetry database is provided, it will print
+        a warning message and return without modifying the grid.
+
+        Parameters:
+        -------------
+        bathymetry_list : list
+            A list of bathymetry data points or parameters to be used to obtain the bathymetry values.
+        
+        bathymetry_database : optional
+            An object representing the bathymetry database or source from which to retrieve the bathymetry values for the grid. If `None`, a message is printed, and the method exits.
+
+        """
         if bathymetry_database is None:
             print("No bathymetry database provided")
             return
@@ -185,9 +227,9 @@ class HurryWaveGrid:
         )
         self.ds["bed_level"] = da
 
-    def set_bathymetry_from_other_source2(self, xb, yb, zb, rectilinearSourceData=True, fill_value=999):
+    def set_bathymetry_from_other_source2(self, xb, yb, zb, rectilinearSourceData=False, fill_value=999):
         xz, yz = self.ds.x.values, self.ds.y.values
-        zz = np.full((grid.nmax, grid.mmax), np.nan)
+        zz = np.full((self.nmax, self.mmax), np.nan)
 
         if rectilinearSourceData:
             if not np.isnan(zb).all():
@@ -222,6 +264,38 @@ class HurryWaveGrid:
               boundary_zmin=-99999.0,
               boundary_zmax= 99999.0,
               quiet=True):
+
+        """
+        Builds the mask for the grid, applying various inclusion/exclusion conditions such as
+        specific depth ranges, polygons to include/exclude, and boundary conditions.
+
+        Parameters:
+        ----------
+        zmin : float
+            Minimum depth value for including grid cells.
+        zmax : float
+            Maximum depth value for including grid cells.
+        include_polygon : GeoDataFrame, optional
+            A set of polygons used to include specific cells in the mask.
+        include_zmin : float, optional
+            Minimum depth value for cells to be included based on polygons.
+        include_zmax : float, optional
+            Maximum depth value for cells to be included based on polygons.
+        exclude_polygon : GeoDataFrame, optional
+            A set of polygons used to exclude specific cells from the mask.
+        exclude_zmin : float, optional
+            Minimum depth value for cells to be excluded based on polygons.
+        exclude_zmax : float, optional
+            Maximum depth value for cells to be excluded based on polygons.
+        boundary_polygon : GeoDataFrame, optional
+            A set of polygons representing boundary conditions.
+        boundary_zmin : float, optional
+            Minimum depth for boundary cells.
+        boundary_zmax : float, optional
+            Maximum depth for boundary cells.
+        quiet : bool, optional
+            If True, suppresses print statements.
+        """
 
         if include_polygon is None:
             include_polygon = gpd.GeoDataFrame()

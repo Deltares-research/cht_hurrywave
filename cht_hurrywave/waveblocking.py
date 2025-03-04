@@ -10,6 +10,36 @@ from cht_utils.misc_tools import interp2
 
 class WaveBlocking:
 
+    """
+    Class to compute wave blocking coefficients for a given model grid.
+
+    This class is used to calculate wave blocking coefficients based on bathymetry data. 
+    The blocking coefficients are calculated for various directional bins and stored 
+    for further use in the model. The calculations involve subgrid processing for each block 
+    and can use either a bathymetry database or bathymetry data from a file (e.g., tif files).
+    
+    Attributes:
+
+    model : Model object
+        The model to which this WaveBlocking instance belongs.
+    version : int
+        The version of the wave blocking calculation (default is 0).
+    block_coefficient : ndarray
+        Array to store the calculated wave blocking coefficients.
+    nbins : int
+        Number of directional bins for the calculation.
+    
+    Methods:
+    
+    read():
+        Reads wave blocking data from a file.
+    build(bathymetry_sets, bathymetry_database=None, file_name="hurrywave.wbl", 
+          nr_dirs=36, nr_subgrid_pixels=20, threshold_level=-5.0, quiet=True, 
+          progress_bar=None, showcase=False):
+        Builds the wave blocking coefficients by iterating over grid blocks and calculating 
+        the blocking coefficients for each cell based on bathymetry data.
+    """
+
     def __init__(self, model, version=0):
         # A regular subgrid table contains only for cells with msk>0
         self.model = model
