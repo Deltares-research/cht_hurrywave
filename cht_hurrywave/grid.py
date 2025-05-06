@@ -205,7 +205,7 @@ class HurryWaveGrid:
 
     def set_bathymetry_from_other_source(self, xb, yb, zb, rectilinearSourceData=True, fill_value=999):
         xz, yz = self.ds.x.values, self.ds.x.values
-        zz = np.full((grid.nmax, grid.mmax), np.nan)
+        zz = np.full((self.nmax, self.mmax), np.nan)
 
         if rectilinearSourceData:
             if not np.isnan(zb).all():
