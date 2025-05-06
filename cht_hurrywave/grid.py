@@ -204,7 +204,7 @@ class HurryWaveGrid:
         self.ds["bed_level"] = da
 
     def set_bathymetry_from_other_source(self, xb, yb, zb, rectilinearSourceData=True, fill_value=999):
-        xz, yz = self.ds.x.values, self.ds.x.values
+        xz, yz = self.ds.x.values, self.ds.y.values
         zz = np.full((self.nmax, self.mmax), np.nan)
 
         if rectilinearSourceData:
