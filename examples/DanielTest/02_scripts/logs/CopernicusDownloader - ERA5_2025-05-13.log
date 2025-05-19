@@ -1,0 +1,173 @@
+2025-05-13 15:50:45,963 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 15:50:45,969 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\swh\2013\swh_201312.nc
+                                     
+                    
+2025-05-13 15:50:45,972 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\dwww\2013\dwww_201312.nc
+                                     
+                    
+2025-05-13 15:50:45,976 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\shww\2013\shww_201312.nc
+                                     
+                    
+2025-05-13 15:50:45,978 - CopernicusDownloader - ERA5 - ERROR - Variable mwd3 not found in product configuration file
+2025-05-13 15:50:45,979 - CopernicusDownloader - ERA5 - ERROR - Variable mwd1 not found in product configuration file
+2025-05-13 15:50:45,982 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mdww\2013\mdww_201312.nc
+                                     
+                    
+2025-05-13 15:50:45,984 - CopernicusDownloader - ERA5 - ERROR - Variable mwp2 not found in product configuration file
+2025-05-13 15:50:45,985 - CopernicusDownloader - ERA5 - ERROR - Variable wsk not found in product configuration file
+2025-05-13 15:50:45,988 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mpww\2013\mpww_201312.nc
+                                     
+                    
+2025-05-13 15:50:45,990 - CopernicusDownloader - ERA5 - ERROR - Variable wdw not found in product configuration file
+2025-05-13 15:50:45,991 - CopernicusDownloader - ERA5 - ERROR - Variable swh1 not found in product configuration file
+2025-05-13 15:50:45,995 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\pp1d\2013\pp1d_201312.nc
+                                     
+                    
+2025-05-13 15:50:45,996 - CopernicusDownloader - ERA5 - ERROR - Variable mwp1 not found in product configuration file
+2025-05-13 15:50:45,999 - CopernicusDownloader - ERA5 - ERROR - Variable mwp3 not found in product configuration file
+2025-05-13 15:50:46,001 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mwd\2013\mwd_201312.nc
+                                     
+                    
+2025-05-13 15:50:46,004 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mwp\2013\mwp_201312.nc
+                                     
+                    
+2025-05-13 15:50:46,006 - CopernicusDownloader - ERA5 - ERROR - Variable wsp not found in product configuration file
+2025-05-13 15:50:46,008 - CopernicusDownloader - ERA5 - ERROR - Variable swh2 not found in product configuration file
+2025-05-13 15:50:46,011 - CopernicusDownloader - ERA5 - ERROR - Variable mp2 not found in product configuration file
+2025-05-13 15:50:46,014 - CopernicusDownloader - ERA5 - ERROR - Variable wss not found in product configuration file
+2025-05-13 15:55:40,121 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 15:55:40,121 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 15:57:16,540 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 15:57:16,540 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 15:57:16,540 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:00:40,599 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:00:40,599 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:00:40,599 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:00:40,599 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:00:53,155 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:00:53,155 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:00:53,155 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:00:53,155 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:00:53,155 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:01:13,167 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:01:13,167 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:01:13,167 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:01:13,167 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:01:13,167 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:01:13,167 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:01:42,043 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:01:42,043 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:01:42,043 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:01:42,043 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:01:42,043 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:01:42,043 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:01:42,043 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:18:57,923 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:18:57,923 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:18:57,923 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:18:57,923 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:18:57,923 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:18:57,923 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:18:57,923 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:18:57,923 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:19:39,191 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:19:39,191 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:19:39,191 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:19:39,191 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:19:39,191 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:19:39,191 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:19:39,191 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:19:39,191 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:19:39,191 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:19:56,162 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:19:56,162 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:19:56,162 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:19:56,162 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:19:56,162 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:19:56,162 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:19:56,162 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:19:56,162 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:19:56,162 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:19:56,162 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:21:11,799 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:21:11,799 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:21:11,799 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:21:11,799 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:21:11,799 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:21:11,799 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:21:11,799 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:21:11,799 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:21:11,799 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:21:11,799 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:21:11,799 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-13 16:21:11,813 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\swh\2013\swh_201312.nc
+                                     
+                    
+2025-05-13 16:21:11,813 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\swh\2013\swh_201312.nc
+                                     
+                    
+2025-05-13 16:21:11,813 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\swh\2013\swh_201312.nc
+                                     
+                    
+2025-05-13 16:21:11,813 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\swh\2013\swh_201312.nc
+                                     
+                    
+2025-05-13 16:21:11,813 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\swh\2013\swh_201312.nc
+                                     
+                    
+2025-05-13 16:21:11,813 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\swh\2013\swh_201312.nc
+                                     
+                    
+2025-05-13 16:21:11,813 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\swh\2013\swh_201312.nc
+                                     
+                    
+2025-05-13 16:21:11,813 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\swh\2013\swh_201312.nc
+                                     
+                    
+2025-05-13 16:21:11,813 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\swh\2013\swh_201312.nc
+                                     
+                    
+2025-05-13 16:21:11,813 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\swh\2013\swh_201312.nc
+                                     
+                    
+2025-05-13 16:21:11,813 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\swh\2013\swh_201312.nc
+                                     
+                    

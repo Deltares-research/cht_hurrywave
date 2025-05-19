@@ -1,0 +1,442 @@
+2025-05-10 22:17:52,076 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-10 22:17:52,076 - CopernicusDownloader - ERA5 - INFO - Day not provided. Using ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29', '30', '31']
+2025-05-10 22:17:52,076 - CopernicusDownloader - ERA5 - INFO - Time not provided. Using ['00:00', '01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00', '23:00']
+2025-05-10 22:17:52,076 - CopernicusDownloader - ERA5 - ERROR - Variable mwd2 not found in product configuration file
+2025-05-10 22:17:52,076 - CopernicusDownloader - ERA5 - ERROR - Variable number not found in product configuration file
+2025-05-10 22:17:52,076 - CopernicusDownloader - ERA5 - ERROR - Variable valid_time not found in product configuration file
+2025-05-10 22:17:52,086 - CopernicusDownloader - ERA5 - ERROR - Variable latitude not found in product configuration file
+2025-05-10 22:17:52,087 - CopernicusDownloader - ERA5 - ERROR - Variable longitude not found in product configuration file
+2025-05-10 22:17:52,088 - CopernicusDownloader - ERA5 - ERROR - Variable expver not found in product configuration file
+2025-05-10 22:17:52,094 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\swh\2013\swh_201312.nc
+                                     
+                    
+2025-05-10 22:17:52,096 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\dwww\2013\dwww_201312.nc
+                                     
+                    
+2025-05-10 22:17:52,099 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\shww\2013\shww_201312.nc
+                                     
+                    
+2025-05-10 22:17:52,100 - CopernicusDownloader - ERA5 - ERROR - Variable mwd3 not found in product configuration file
+2025-05-10 22:17:52,101 - CopernicusDownloader - ERA5 - ERROR - Variable mwd1 not found in product configuration file
+2025-05-10 22:17:52,104 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mdww\2013\mdww_201312.nc
+                                     
+                    
+2025-05-10 22:17:52,106 - CopernicusDownloader - ERA5 - ERROR - Variable mwp2 not found in product configuration file
+2025-05-10 22:17:52,107 - CopernicusDownloader - ERA5 - ERROR - Variable wsk not found in product configuration file
+2025-05-10 22:17:52,109 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mpww\2013\mpww_201312.nc
+                                     
+                    
+2025-05-10 22:17:52,110 - CopernicusDownloader - ERA5 - ERROR - Variable wdw not found in product configuration file
+2025-05-10 22:17:52,111 - CopernicusDownloader - ERA5 - ERROR - Variable swh1 not found in product configuration file
+2025-05-10 22:17:52,114 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\pp1d\2013\pp1d_201312.nc
+                                     
+                    
+2025-05-10 22:17:52,115 - CopernicusDownloader - ERA5 - ERROR - Variable mwp1 not found in product configuration file
+2025-05-10 22:17:52,116 - CopernicusDownloader - ERA5 - ERROR - Variable mwp3 not found in product configuration file
+2025-05-10 22:17:52,118 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mwd\2013\mwd_201312.nc
+                                     
+                    
+2025-05-10 22:17:52,121 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mwp\2013\mwp_201312.nc
+                                     
+                    
+2025-05-10 22:17:52,123 - CopernicusDownloader - ERA5 - ERROR - Variable wsp not found in product configuration file
+2025-05-10 22:17:52,124 - CopernicusDownloader - ERA5 - ERROR - Variable swh2 not found in product configuration file
+2025-05-10 22:17:52,125 - CopernicusDownloader - ERA5 - ERROR - Variable mp2 not found in product configuration file
+2025-05-10 22:17:52,129 - CopernicusDownloader - ERA5 - ERROR - Variable wss not found in product configuration file
+2025-05-10 22:17:52,130 - CopernicusDownloader - ERA5 - ERROR - Variable wmb not found in product configuration file
+2025-05-10 22:17:52,130 - CopernicusDownloader - ERA5 - ERROR - Variable swh3 not found in product configuration file
+2025-05-10 22:21:07,810 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-10 22:21:07,810 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-10 22:21:15,942 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-10 22:21:15,942 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-10 22:21:15,942 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-10 22:21:15,945 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\swh\2013\swh_201312.nc
+                                     
+                    
+2025-05-10 22:21:15,945 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\swh\2013\swh_201312.nc
+                                     
+                    
+2025-05-10 22:21:15,945 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\swh\2013\swh_201312.nc
+                                     
+                    
+2025-05-10 22:21:15,949 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\dwww\2013\dwww_201312.nc
+                                     
+                    
+2025-05-10 22:21:15,949 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\dwww\2013\dwww_201312.nc
+                                     
+                    
+2025-05-10 22:21:15,949 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\dwww\2013\dwww_201312.nc
+                                     
+                    
+2025-05-10 22:21:15,952 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\shww\2013\shww_201312.nc
+                                     
+                    
+2025-05-10 22:21:15,952 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\shww\2013\shww_201312.nc
+                                     
+                    
+2025-05-10 22:21:15,952 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\shww\2013\shww_201312.nc
+                                     
+                    
+2025-05-10 22:21:15,955 - CopernicusDownloader - ERA5 - ERROR - Variable mwd3 not found in product configuration file
+2025-05-10 22:21:15,955 - CopernicusDownloader - ERA5 - ERROR - Variable mwd3 not found in product configuration file
+2025-05-10 22:21:15,955 - CopernicusDownloader - ERA5 - ERROR - Variable mwd3 not found in product configuration file
+2025-05-10 22:21:15,956 - CopernicusDownloader - ERA5 - ERROR - Variable mwd1 not found in product configuration file
+2025-05-10 22:21:15,956 - CopernicusDownloader - ERA5 - ERROR - Variable mwd1 not found in product configuration file
+2025-05-10 22:21:15,956 - CopernicusDownloader - ERA5 - ERROR - Variable mwd1 not found in product configuration file
+2025-05-10 22:21:15,956 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mdww\2013\mdww_201312.nc
+                                     
+                    
+2025-05-10 22:21:15,956 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mdww\2013\mdww_201312.nc
+                                     
+                    
+2025-05-10 22:21:15,956 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mdww\2013\mdww_201312.nc
+                                     
+                    
+2025-05-10 22:21:15,956 - CopernicusDownloader - ERA5 - ERROR - Variable mwp2 not found in product configuration file
+2025-05-10 22:21:15,956 - CopernicusDownloader - ERA5 - ERROR - Variable mwp2 not found in product configuration file
+2025-05-10 22:21:15,956 - CopernicusDownloader - ERA5 - ERROR - Variable mwp2 not found in product configuration file
+2025-05-10 22:21:15,971 - CopernicusDownloader - ERA5 - ERROR - Variable wsk not found in product configuration file
+2025-05-10 22:21:15,971 - CopernicusDownloader - ERA5 - ERROR - Variable wsk not found in product configuration file
+2025-05-10 22:21:15,971 - CopernicusDownloader - ERA5 - ERROR - Variable wsk not found in product configuration file
+2025-05-10 22:21:15,974 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mpww\2013\mpww_201312.nc
+                                     
+                    
+2025-05-10 22:21:15,974 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mpww\2013\mpww_201312.nc
+                                     
+                    
+2025-05-10 22:21:15,974 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mpww\2013\mpww_201312.nc
+                                     
+                    
+2025-05-10 22:21:15,978 - CopernicusDownloader - ERA5 - ERROR - Variable wdw not found in product configuration file
+2025-05-10 22:21:15,978 - CopernicusDownloader - ERA5 - ERROR - Variable wdw not found in product configuration file
+2025-05-10 22:21:15,978 - CopernicusDownloader - ERA5 - ERROR - Variable wdw not found in product configuration file
+2025-05-10 22:21:15,982 - CopernicusDownloader - ERA5 - ERROR - Variable swh1 not found in product configuration file
+2025-05-10 22:21:15,982 - CopernicusDownloader - ERA5 - ERROR - Variable swh1 not found in product configuration file
+2025-05-10 22:21:15,982 - CopernicusDownloader - ERA5 - ERROR - Variable swh1 not found in product configuration file
+2025-05-10 22:21:15,988 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\pp1d\2013\pp1d_201312.nc
+                                     
+                    
+2025-05-10 22:21:15,988 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\pp1d\2013\pp1d_201312.nc
+                                     
+                    
+2025-05-10 22:21:15,988 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\pp1d\2013\pp1d_201312.nc
+                                     
+                    
+2025-05-10 22:21:15,992 - CopernicusDownloader - ERA5 - ERROR - Variable mwp1 not found in product configuration file
+2025-05-10 22:21:15,992 - CopernicusDownloader - ERA5 - ERROR - Variable mwp1 not found in product configuration file
+2025-05-10 22:21:15,992 - CopernicusDownloader - ERA5 - ERROR - Variable mwp1 not found in product configuration file
+2025-05-10 22:21:15,995 - CopernicusDownloader - ERA5 - ERROR - Variable mwp3 not found in product configuration file
+2025-05-10 22:21:15,995 - CopernicusDownloader - ERA5 - ERROR - Variable mwp3 not found in product configuration file
+2025-05-10 22:21:15,995 - CopernicusDownloader - ERA5 - ERROR - Variable mwp3 not found in product configuration file
+2025-05-10 22:21:16,000 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mwd\2013\mwd_201312.nc
+                                     
+                    
+2025-05-10 22:21:16,000 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mwd\2013\mwd_201312.nc
+                                     
+                    
+2025-05-10 22:21:16,000 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mwd\2013\mwd_201312.nc
+                                     
+                    
+2025-05-10 22:21:16,004 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mwp\2013\mwp_201312.nc
+                                     
+                    
+2025-05-10 22:21:16,004 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mwp\2013\mwp_201312.nc
+                                     
+                    
+2025-05-10 22:21:16,004 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mwp\2013\mwp_201312.nc
+                                     
+                    
+2025-05-10 22:21:16,008 - CopernicusDownloader - ERA5 - ERROR - Variable wsp not found in product configuration file
+2025-05-10 22:21:16,008 - CopernicusDownloader - ERA5 - ERROR - Variable wsp not found in product configuration file
+2025-05-10 22:21:16,008 - CopernicusDownloader - ERA5 - ERROR - Variable wsp not found in product configuration file
+2025-05-10 22:21:16,009 - CopernicusDownloader - ERA5 - ERROR - Variable swh2 not found in product configuration file
+2025-05-10 22:21:16,009 - CopernicusDownloader - ERA5 - ERROR - Variable swh2 not found in product configuration file
+2025-05-10 22:21:16,009 - CopernicusDownloader - ERA5 - ERROR - Variable swh2 not found in product configuration file
+2025-05-10 22:21:16,009 - CopernicusDownloader - ERA5 - ERROR - Variable mp2 not found in product configuration file
+2025-05-10 22:21:16,009 - CopernicusDownloader - ERA5 - ERROR - Variable mp2 not found in product configuration file
+2025-05-10 22:21:16,009 - CopernicusDownloader - ERA5 - ERROR - Variable mp2 not found in product configuration file
+2025-05-10 22:21:16,024 - CopernicusDownloader - ERA5 - ERROR - Variable wss not found in product configuration file
+2025-05-10 22:21:16,024 - CopernicusDownloader - ERA5 - ERROR - Variable wss not found in product configuration file
+2025-05-10 22:21:16,024 - CopernicusDownloader - ERA5 - ERROR - Variable wss not found in product configuration file
+2025-05-10 22:21:16,028 - CopernicusDownloader - ERA5 - ERROR - Variable wmb not found in product configuration file
+2025-05-10 22:21:16,028 - CopernicusDownloader - ERA5 - ERROR - Variable wmb not found in product configuration file
+2025-05-10 22:21:16,028 - CopernicusDownloader - ERA5 - ERROR - Variable wmb not found in product configuration file
+2025-05-10 22:21:16,031 - CopernicusDownloader - ERA5 - ERROR - Variable swh3 not found in product configuration file
+2025-05-10 22:21:16,031 - CopernicusDownloader - ERA5 - ERROR - Variable swh3 not found in product configuration file
+2025-05-10 22:21:16,031 - CopernicusDownloader - ERA5 - ERROR - Variable swh3 not found in product configuration file
+2025-05-10 22:22:06,692 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-10 22:22:06,692 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-10 22:22:06,692 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-10 22:22:06,692 - CopernicusDownloader - ERA5 - INFO - ---- CHECKING DATA ----
+2025-05-10 22:22:06,697 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\swh\2013\swh_201312.nc
+                                     
+                    
+2025-05-10 22:22:06,697 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\swh\2013\swh_201312.nc
+                                     
+                    
+2025-05-10 22:22:06,697 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\swh\2013\swh_201312.nc
+                                     
+                    
+2025-05-10 22:22:06,697 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\swh\2013\swh_201312.nc
+                                     
+                    
+2025-05-10 22:22:06,703 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\dwww\2013\dwww_201312.nc
+                                     
+                    
+2025-05-10 22:22:06,703 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\dwww\2013\dwww_201312.nc
+                                     
+                    
+2025-05-10 22:22:06,703 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\dwww\2013\dwww_201312.nc
+                                     
+                    
+2025-05-10 22:22:06,703 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\dwww\2013\dwww_201312.nc
+                                     
+                    
+2025-05-10 22:22:06,707 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\shww\2013\shww_201312.nc
+                                     
+                    
+2025-05-10 22:22:06,707 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\shww\2013\shww_201312.nc
+                                     
+                    
+2025-05-10 22:22:06,707 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\shww\2013\shww_201312.nc
+                                     
+                    
+2025-05-10 22:22:06,707 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\shww\2013\shww_201312.nc
+                                     
+                    
+2025-05-10 22:22:06,711 - CopernicusDownloader - ERA5 - ERROR - Variable mwd3 not found in product configuration file
+2025-05-10 22:22:06,711 - CopernicusDownloader - ERA5 - ERROR - Variable mwd3 not found in product configuration file
+2025-05-10 22:22:06,711 - CopernicusDownloader - ERA5 - ERROR - Variable mwd3 not found in product configuration file
+2025-05-10 22:22:06,711 - CopernicusDownloader - ERA5 - ERROR - Variable mwd3 not found in product configuration file
+2025-05-10 22:22:06,711 - CopernicusDownloader - ERA5 - ERROR - Variable mwd1 not found in product configuration file
+2025-05-10 22:22:06,711 - CopernicusDownloader - ERA5 - ERROR - Variable mwd1 not found in product configuration file
+2025-05-10 22:22:06,711 - CopernicusDownloader - ERA5 - ERROR - Variable mwd1 not found in product configuration file
+2025-05-10 22:22:06,711 - CopernicusDownloader - ERA5 - ERROR - Variable mwd1 not found in product configuration file
+2025-05-10 22:22:06,724 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mdww\2013\mdww_201312.nc
+                                     
+                    
+2025-05-10 22:22:06,724 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mdww\2013\mdww_201312.nc
+                                     
+                    
+2025-05-10 22:22:06,724 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mdww\2013\mdww_201312.nc
+                                     
+                    
+2025-05-10 22:22:06,724 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mdww\2013\mdww_201312.nc
+                                     
+                    
+2025-05-10 22:22:06,730 - CopernicusDownloader - ERA5 - ERROR - Variable mwp2 not found in product configuration file
+2025-05-10 22:22:06,730 - CopernicusDownloader - ERA5 - ERROR - Variable mwp2 not found in product configuration file
+2025-05-10 22:22:06,730 - CopernicusDownloader - ERA5 - ERROR - Variable mwp2 not found in product configuration file
+2025-05-10 22:22:06,730 - CopernicusDownloader - ERA5 - ERROR - Variable mwp2 not found in product configuration file
+2025-05-10 22:22:06,733 - CopernicusDownloader - ERA5 - ERROR - Variable wsk not found in product configuration file
+2025-05-10 22:22:06,733 - CopernicusDownloader - ERA5 - ERROR - Variable wsk not found in product configuration file
+2025-05-10 22:22:06,733 - CopernicusDownloader - ERA5 - ERROR - Variable wsk not found in product configuration file
+2025-05-10 22:22:06,733 - CopernicusDownloader - ERA5 - ERROR - Variable wsk not found in product configuration file
+2025-05-10 22:22:06,736 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mpww\2013\mpww_201312.nc
+                                     
+                    
+2025-05-10 22:22:06,736 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mpww\2013\mpww_201312.nc
+                                     
+                    
+2025-05-10 22:22:06,736 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mpww\2013\mpww_201312.nc
+                                     
+                    
+2025-05-10 22:22:06,736 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mpww\2013\mpww_201312.nc
+                                     
+                    
+2025-05-10 22:22:06,741 - CopernicusDownloader - ERA5 - ERROR - Variable wdw not found in product configuration file
+2025-05-10 22:22:06,741 - CopernicusDownloader - ERA5 - ERROR - Variable wdw not found in product configuration file
+2025-05-10 22:22:06,741 - CopernicusDownloader - ERA5 - ERROR - Variable wdw not found in product configuration file
+2025-05-10 22:22:06,741 - CopernicusDownloader - ERA5 - ERROR - Variable wdw not found in product configuration file
+2025-05-10 22:22:06,745 - CopernicusDownloader - ERA5 - ERROR - Variable swh1 not found in product configuration file
+2025-05-10 22:22:06,745 - CopernicusDownloader - ERA5 - ERROR - Variable swh1 not found in product configuration file
+2025-05-10 22:22:06,745 - CopernicusDownloader - ERA5 - ERROR - Variable swh1 not found in product configuration file
+2025-05-10 22:22:06,745 - CopernicusDownloader - ERA5 - ERROR - Variable swh1 not found in product configuration file
+2025-05-10 22:22:06,749 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\pp1d\2013\pp1d_201312.nc
+                                     
+                    
+2025-05-10 22:22:06,749 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\pp1d\2013\pp1d_201312.nc
+                                     
+                    
+2025-05-10 22:22:06,749 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\pp1d\2013\pp1d_201312.nc
+                                     
+                    
+2025-05-10 22:22:06,749 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\pp1d\2013\pp1d_201312.nc
+                                     
+                    
+2025-05-10 22:22:06,752 - CopernicusDownloader - ERA5 - ERROR - Variable mwp1 not found in product configuration file
+2025-05-10 22:22:06,752 - CopernicusDownloader - ERA5 - ERROR - Variable mwp1 not found in product configuration file
+2025-05-10 22:22:06,752 - CopernicusDownloader - ERA5 - ERROR - Variable mwp1 not found in product configuration file
+2025-05-10 22:22:06,752 - CopernicusDownloader - ERA5 - ERROR - Variable mwp1 not found in product configuration file
+2025-05-10 22:22:06,755 - CopernicusDownloader - ERA5 - ERROR - Variable mwp3 not found in product configuration file
+2025-05-10 22:22:06,755 - CopernicusDownloader - ERA5 - ERROR - Variable mwp3 not found in product configuration file
+2025-05-10 22:22:06,755 - CopernicusDownloader - ERA5 - ERROR - Variable mwp3 not found in product configuration file
+2025-05-10 22:22:06,755 - CopernicusDownloader - ERA5 - ERROR - Variable mwp3 not found in product configuration file
+2025-05-10 22:22:06,760 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mwd\2013\mwd_201312.nc
+                                     
+                    
+2025-05-10 22:22:06,760 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mwd\2013\mwd_201312.nc
+                                     
+                    
+2025-05-10 22:22:06,760 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mwd\2013\mwd_201312.nc
+                                     
+                    
+2025-05-10 22:22:06,760 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mwd\2013\mwd_201312.nc
+                                     
+                    
+2025-05-10 22:22:06,761 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mwp\2013\mwp_201312.nc
+                                     
+                    
+2025-05-10 22:22:06,761 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mwp\2013\mwp_201312.nc
+                                     
+                    
+2025-05-10 22:22:06,761 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mwp\2013\mwp_201312.nc
+                                     
+                    
+2025-05-10 22:22:06,761 - CopernicusDownloader - ERA5 - INFO - 
+                                     
+                        Analyzing C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data\Sinterklaas_NorthSea_Nobnd\ERA5\reanalysis-era5-single-levels\ocean\reanalysis\mwp\2013\mwp_201312.nc
+                                     
+                    
+2025-05-10 22:22:06,761 - CopernicusDownloader - ERA5 - ERROR - Variable wsp not found in product configuration file
+2025-05-10 22:22:06,761 - CopernicusDownloader - ERA5 - ERROR - Variable wsp not found in product configuration file
+2025-05-10 22:22:06,761 - CopernicusDownloader - ERA5 - ERROR - Variable wsp not found in product configuration file
+2025-05-10 22:22:06,761 - CopernicusDownloader - ERA5 - ERROR - Variable wsp not found in product configuration file
+2025-05-10 22:22:06,761 - CopernicusDownloader - ERA5 - ERROR - Variable swh2 not found in product configuration file
+2025-05-10 22:22:06,761 - CopernicusDownloader - ERA5 - ERROR - Variable swh2 not found in product configuration file
+2025-05-10 22:22:06,761 - CopernicusDownloader - ERA5 - ERROR - Variable swh2 not found in product configuration file
+2025-05-10 22:22:06,761 - CopernicusDownloader - ERA5 - ERROR - Variable swh2 not found in product configuration file
+2025-05-10 22:22:06,776 - CopernicusDownloader - ERA5 - ERROR - Variable mp2 not found in product configuration file
+2025-05-10 22:22:06,776 - CopernicusDownloader - ERA5 - ERROR - Variable mp2 not found in product configuration file
+2025-05-10 22:22:06,776 - CopernicusDownloader - ERA5 - ERROR - Variable mp2 not found in product configuration file
+2025-05-10 22:22:06,776 - CopernicusDownloader - ERA5 - ERROR - Variable mp2 not found in product configuration file
+2025-05-10 22:22:06,780 - CopernicusDownloader - ERA5 - ERROR - Variable wss not found in product configuration file
+2025-05-10 22:22:06,780 - CopernicusDownloader - ERA5 - ERROR - Variable wss not found in product configuration file
+2025-05-10 22:22:06,780 - CopernicusDownloader - ERA5 - ERROR - Variable wss not found in product configuration file
+2025-05-10 22:22:06,780 - CopernicusDownloader - ERA5 - ERROR - Variable wss not found in product configuration file
