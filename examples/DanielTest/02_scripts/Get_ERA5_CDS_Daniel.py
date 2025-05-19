@@ -25,7 +25,7 @@ variables = ["10m_u_component_of_wind", "10m_v_component_of_wind","mean_wave_dir
 # main_path_download is the path where you want to download the data (make sure it is up the tree to avoid too long filepaths)
 # final_data_path is the path where you want to save the final data
 
-name = 'SInterklaas_NorthSea' # name of the data (for naming)
+name = 'Sinterklaas_NorthSea' # name of the data (for naming)
 main_path_download = r'C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\ERA5_data_downloaded' # path to the download (make sure it is up the tree to avoid long filepaths)
 final_data_path = r'C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\ERA_5_data' # path to the final data
 
