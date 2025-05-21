@@ -271,8 +271,8 @@ class HurryWaveBoundaryConditions:
         min_dist : float, optional
             The minimum distance between two connected boundary points. If not provided, 
             it defaults to twice the grid resolution (`2 * dx`).
-        bnd_dist : float, optional, default=50000.0
-            The target distance for interpolated boundary points. The function will 
+        bnd_dist : float, optional, default=50000.0 [m]
+            The target distance [m] for interpolated boundary points. The function will 
             generate points along boundary lines at approximately this interval.
 
 
@@ -285,38 +285,82 @@ class HurryWaveBoundaryConditions:
         # Default min_dist to twice the grid spacing if not provided
         if min_dist is None:
             min_dist = self.model.grid.dx * 2
+        # Convert bnd_dist in m to degree if crs is geographic
+        if self.model.crs.is_geographic:
+            bnd_dist = bnd_dist / 111000 
 
         # Extract mask data and identify boundary points (where mask == 2)
         da_mask = self.model.grid.ds["mask"]
         ibnd = np.where(da_mask.values == 2)  # Boundary indices
         xp, yp = da_mask["x"].values[ibnd], da_mask["y"].values[ibnd]  # Boundary coordinates
 
-        # Initialize tracking variables
-        used = np.full(xp.shape, False, dtype=bool)  # Track used points
+        # Make boolean array for points that are include in a polyline 
+        used = np.full(xp.shape, False, dtype=bool)
+
+        # Make list of polylines. Each polyline is a list of indices of boundary points.
         polylines, gdf_list, ip = [], [], 0  # Storage for polylines and final points
 
-        # Construct polylines by connecting nearby points
-        while not np.all(used):
-            # Start a new polyline from the first unused point
-            i1 = np.where(used == False)[0][0]
+        while True:
+
+            if np.all(used):
+                # All boundary grid points have been used. We can stop now.
+                break
+
+            # Find first the unused points
+            i1 = np.where(~used)[0][0]
+
+            # Set this point to used
             used[i1] = True
-            polyline = [i1]
 
-            # Connect nearest neighbors iteratively
+            # Start new polyline with index i1
+            polyline = [i1] 
+
             while True:
-                dst = np.sqrt((xp - xp[i1])**2 + (yp - yp[i1])**2)  # Compute distances
-                dst[polyline] = np.nan  # Ignore already used points
-                inear = np.nanargmin(dst)  # Find the closest unused point
+                # Compute distances to all points that have not been used
+                xpunused = xp[~used]
+                ypunused = yp[~used]
+                # Get all indices of unused points
+                unused_indices = np.where(~used)[0]
 
+                dst = np.sqrt((xpunused - xp[i1])**2 + (ypunused - yp[i1])**2)
+                if np.all(np.isnan(dst)):
+                    break
+                inear = np.nanargmin(dst)
+                inearall = unused_indices[inear]
                 if dst[inear] < min_dist:
-                    polyline.append(inear)
-                    used[inear] = True
-                    i1 = inear
+                    # Found next point along polyline
+                    polyline.append(inearall)
+                    used[inearall] = True
+                    i1 = inearall
                 else:
-                    break  # Stop when no nearby points remain
+                    # Last point found
+                    break
+            
+            # Now work the other way
+            # Start with first point of polyline
+            i1 = polyline[0]
+            while True:
+                if np.all(used):
+                    # All boundary grid points have been used. We can stop now.
+                    break
+                # Now we go in the other direction            
+                xpunused = xp[~used]
+                ypunused = yp[~used]
+                unused_indices = np.where(~used)[0]
+                dst = np.sqrt((xpunused - xp[i1])**2 + (ypunused - yp[i1])**2)
+                inear = np.nanargmin(dst)
+                inearall = unused_indices[inear]
+                if dst[inear] < min_dist:
+                    # Found next point along polyline
+                    polyline.insert(0, inearall)
+                    used[inearall] = True
+                    # Set index of next point
+                    i1 = inearall
+                else:
+                    # Last nearby point found
+                    break
 
-            # Store the polyline if it contains more than one point
-            if len(polyline) > 1:
+            if len(polyline) > 1:  
                 polylines.append(polyline)
 
         # Interpolate new points along each polyline
