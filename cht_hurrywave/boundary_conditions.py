@@ -300,8 +300,8 @@ class HurryWaveBoundaryConditions:
             The minimum distance between two connected boundary points. If not provided, 
             it defaults to twice the grid resolution (`2 * dx`).
         bnd_dist : float, optional, default=50000.0
-            The target distance for interpolated boundary points. The function will 
-            generate points along boundary lines at approximately this interval.
+            The target distance [m] for interpolated boundary points. The function will 
+            generate points along boundary lines at approximately this interval (in [m]).
 
 
         Returns
