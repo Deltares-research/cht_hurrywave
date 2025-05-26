@@ -7,9 +7,9 @@ import matplotlib.pyplot as plt
 plt.close("all")
 import os
 
-name = 'Sinterklaas_NorthSea'
-start_date = dt.datetime(2013, 12, 1)  # Year, Month, Day
-end_date = dt.datetime(2013, 12, 8)  # Year, Month, Day
+name = 'Pia'
+start_date = dt.datetime(2023, 12, 19)  # Year, Month, Day
+end_date = dt.datetime(2023, 12, 23)  # Year, Month, Day
 
 # Set the path to save the data
 main_path = r'C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\Waterinfo_RWS'
@@ -43,7 +43,7 @@ def get_data(location, var_name, start_date, end_date, dir_output, dict_measurem
     filename = os.path.join(dir_output, f"{station_id}-{station_messageid}.nc")
 
     if os.path.isfile(filename) and overwrite is False:
-        print(f'{station_id}: netcdf file already exists and overwrite=False, skipping')
+        print(f'{station_id}: file already exists and overwrite=False, skipping')
         return
 
     measurements = ddlpy.measurements(location, start_date=start_date, end_date=end_date)
@@ -52,7 +52,7 @@ def get_data(location, var_name, start_date, end_date, dir_output, dict_measurem
         print(f'{station_id}: no measurements found')
         return
 
-    print(f'{station_id}: writing retrieved data to netcdf file')
+    print(f'{station_id}: writing retrieved data to file')
 
     simplified = ddlpy.simplify_dataframe(measurements)
 
