@@ -12,4 +12,4 @@ version = "1.0.0"
 # print(f"Welcome to CHT HurryWave version {version}")
 
 from .hurrywave import HurryWave
-# from .hurrywave_builder import HurryWaveBuilder
+from .xmi import HurryWaveXmi

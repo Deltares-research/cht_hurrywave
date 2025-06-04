@@ -69,7 +69,7 @@ class HurryWaveBoundaryConditions:
             return
 
         file_name = os.path.join(self.model.path, self.model.input.variables.bndfile)
-        df = pd.read_csv(file_name, index_col=False, header=None, sep="\s+", names=['x', 'y'])
+        df = pd.read_csv(file_name, index_col=False, header=None, sep=r"\s+", names=['x', 'y'])
 
         gdf_list = []
         for ind in range(len(df.x.values)):
@@ -124,6 +124,34 @@ class HurryWaveBoundaryConditions:
             df = pd.DataFrame({"time": time, "hs": hs, "tp": tp, "wd": wd, "ds": ds})
             df.set_index("time", inplace=True)
             self.gdf.at[index, "timeseries"] = df
+
+
+    def add_point(self, x, y, hs=1.0, tp=8.0, wd=0.0, ds=30.0):
+        """
+        Adds a new boundary point at the specified coordinates.
+        
+        Parameters
+        ----------
+        x : float
+            X-coordinate of the new point.
+        y : float
+            Y-coordinate of the new point.
+        """
+        name = str(len(self.gdf.index) + 1).zfill(4)
+        point = shapely.geometry.Point(x, y)
+        # Create GDF for the new point
+        gdf = gpd.GeoDataFrame(columns=["name", "timeseries", "spectra", "geometry"], crs=self.model.crs)
+        gdf.at[0, "name"] = name
+        gdf.at[0, "geometry"] = point
+        if self.gdf.empty:
+            df = pd.DataFrame({"time": [self.model.input.variables.tstart, self.model.input.variables.tstop],
+                            "hs": [hs, hs], "tp": [tp, tp], "wd": [wd, wd], "ds": [ds, ds]}).set_index("time")
+        else:
+            # Copy from fist point in self.gdf
+            df = self.gdf["timeseries"].iloc[0].copy()            
+        gdf.at[0, "timeseries"] = df
+        # Append the new point to the existing GeoDataFrame
+        self.gdf = pd.concat([self.gdf, gdf], ignore_index=True)
 
     def delete_point(self, index):
         """
@@ -272,8 +300,8 @@ class HurryWaveBoundaryConditions:
             The minimum distance between two connected boundary points. If not provided, 
             it defaults to twice the grid resolution (`2 * dx`).
         bnd_dist : float, optional, default=50000.0
-            The target distance for interpolated boundary points. The function will 
-            generate points along boundary lines at approximately this interval.
+            The target distance [m] for interpolated boundary points. The function will 
+            generate points along boundary lines at approximately this interval (in [m]).
 
 
         Returns
@@ -291,38 +319,97 @@ class HurryWaveBoundaryConditions:
         ibnd = np.where(da_mask.values == 2)  # Boundary indices
         xp, yp = da_mask["x"].values[ibnd], da_mask["y"].values[ibnd]  # Boundary coordinates
 
-        # Initialize tracking variables
-        used = np.full(xp.shape, False, dtype=bool)  # Track used points
-        polylines, gdf_list, ip = [], [], 0  # Storage for polylines and final points
+        # Make boolean array for points that are include in a polyline 
+        used = np.full(xp.shape, False, dtype=bool)
 
-        # Construct polylines by connecting nearby points
-        while not np.all(used):
-            # Start a new polyline from the first unused point
-            i1 = np.where(used == False)[0][0]
+        # Make list of polylines. Each polyline is a list of indices of boundary points.
+        polylines = []
+
+        while True:
+
+            if np.all(used):
+                # All boundary grid points have been used. We can stop now.
+                break
+
+            # Find first the unused points
+            i1 = np.where(~used)[0][0]
+
+            # Set this point to used
             used[i1] = True
-            polyline = [i1]
 
-            # Connect nearest neighbors iteratively
+            # Start new polyline with index i1
+            polyline = [i1] 
+
             while True:
-                dst = np.sqrt((xp - xp[i1])**2 + (yp - yp[i1])**2)  # Compute distances
-                dst[polyline] = np.nan  # Ignore already used points
-                inear = np.nanargmin(dst)  # Find the closest unused point
+                # Compute distances to all points that have not been used
+                xpunused = xp[~used]
+                ypunused = yp[~used]
+                # Get all indices of unused points
+                unused_indices = np.where(~used)[0]
 
+                dst = np.sqrt((xpunused - xp[i1])**2 + (ypunused - yp[i1])**2)
+                if np.all(np.isnan(dst)):
+                    break
+                inear = np.nanargmin(dst)
+                inearall = unused_indices[inear]
                 if dst[inear] < min_dist:
-                    polyline.append(inear)
-                    used[inear] = True
-                    i1 = inear
+                    # Found next point along polyline
+                    polyline.append(inearall)
+                    used[inearall] = True
+                    i1 = inearall
                 else:
-                    break  # Stop when no nearby points remain
+                    # Last point found
+                    break
+            
+            # Now work the other way
+            # Start with first point of polyline
+            i1 = polyline[0]
+            while True:
+                if np.all(used):
+                    # All boundary grid points have been used. We can stop now.
+                    break
+                # Now we go in the other direction            
+                xpunused = xp[~used]
+                ypunused = yp[~used]
+                unused_indices = np.where(~used)[0]
+                dst = np.sqrt((xpunused - xp[i1])**2 + (ypunused - yp[i1])**2)
+                inear = np.nanargmin(dst)
+                inearall = unused_indices[inear]
+                if dst[inear] < min_dist:
+                    # Found next point along polyline
+                    polyline.insert(0, inearall)
+                    used[inearall] = True
+                    # Set index of next point
+                    i1 = inearall
+                else:
+                    # Last nearby point found
+                    break
 
-            # Store the polyline if it contains more than one point
-            if len(polyline) > 1:
+            if len(polyline) > 1:  
                 polylines.append(polyline)
+
+        # Transform to web mercator to get distance in metres
+        if self.model.crs.is_geographic:
+            transformer = Transformer.from_crs(self.model.crs,
+                                            3857,
+                                            always_xy=True)
+        gdf_list = []
+        ip = 0
 
         # Interpolate new points along each polyline
         for polyline in polylines:
-            line = shapely.geometry.LineString([(x, y) for x, y in zip(xp[polyline], yp[polyline])])
-            num_points = int(line.length / bnd_dist) + 2  # Calculate number of interpolation points
+            x = xp[polyline]
+            y = yp[polyline]
+            points = [(x,y) for x,y in zip(x.ravel(),y.ravel())]
+            line = shapely.geometry.LineString(points)
+            if self.model.crs.is_geographic:
+                # Line in web mercator (to get length in metres)
+                xm, ym = transformer.transform(x, y)
+                pointsm = [(xm,ym) for xm,ym in zip(xm.ravel(),ym.ravel())]
+                linem = shapely.geometry.LineString(pointsm)
+                num_points = int(linem.length / bnd_dist) + 2
+            else:
+                num_points = int(line.length / bnd_dist) + 2
 
             # Generate evenly spaced points along the polyline
             new_points = [line.interpolate(i / float(num_points - 1), normalized=True) for i in range(num_points)]
@@ -358,7 +445,7 @@ def read_timeseries_file(file_name, ref_date):
     DataFrame
         DataFrame with time series indexed by time.
     """
-    df = pd.read_csv(file_name, index_col=0, header=None, sep="\s+")
+    df = pd.read_csv(file_name, index_col=0, header=None, sep=r"\s+")
     df.index = ref_date + pd.to_timedelta(df.index, unit="s")
     return df
 
