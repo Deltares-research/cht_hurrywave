@@ -7,13 +7,24 @@ from mpl_toolkits.basemap import Basemap
 import xarray as xr
 from matplotlib.colors import TwoSlopeNorm
 from matplotlib.colors import LinearSegmentedColormap
+from scipy.spatial import cKDTree
+from scipy.interpolate import griddata
 
 base_path = r'C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest'
 model_path = os.path.join(base_path, '04_modelruns') 
+era5_data_path = os.path.join(base_path,'01_data','ERA_5_data')
+
 # output_path = os.path.join(base_path, '05_postprocessing')
 
-comparison_name = 'Pia_3msurge_VS_Pia'  # Name of the comparison
-model_names = ['Pia', 'Pia_with_3m_surge']  # List of model names to compare
+data_name = 'Pia'
+comparison_name = 'NorthSea_Pia_surge_comp'  # Name of the comparison
+model_names = ['Pia','Pia_with_3m_surge']  # List of model names to compare
+
+era5_file = os.path.join(era5_data_path, data_name,f'{data_name}_era5_data.nc')
+
+era5_data = xu.open_dataset(era5_file)
+
+
 
 base_name = model_names[0]
 observed_names = model_names[1:]
@@ -298,13 +309,82 @@ df_stats_pivot = df_stats_long.pivot_table(
 df_stats_pivot.to_csv(os.path.join(output_dir, 'his_model_statistics_comparison.csv'))
 
 ################ MAP DATA ######################
+def plot_metrics_subplot(lon, lat,
+                         rmse, bias, scatter,
+                         metric_name, unit,
+                         compared_name, base_name, output_path):
 
-def plot_comparison_map(base_map_path, compared_map_path, output_path, plot_swh=True, plot_tp = True):
-    base_nc = xu.open_dataset(base_map_path, decode_times=True)
-    comp_nc = xu.open_dataset(compared_map_path, decode_times=True)
+    fig, axes = plt.subplots(nrows=1, ncols=3, figsize=(18, 6), constrained_layout=True)
 
-    base_name = os.path.basename(os.path.dirname(base_map_path))
-    compared_name = os.path.basename(os.path.dirname(compared_map_path))
+    # Order: RMSE, Scatter Index, Bias
+    metrics = [
+        ('RMSE', rmse),
+        ('Scatter Index', scatter),
+        ('Bias', bias)
+    ]
+
+    # Custom colormaps
+
+    # Grey to red
+    grey_red = LinearSegmentedColormap.from_list("grey_red", ["#e0e0e0", "#8b0000"])
+    # Red-grey-blue for bias
+    red_grey_blue = LinearSegmentedColormap.from_list("red_grey_blue", ["#8b0000", "#e0e0e0", "#0033cc"])
+
+    cmaps = {
+        'RMSE': grey_red,
+        'Scatter Index': grey_red,
+        'Bias': red_grey_blue
+    }
+
+    vmin_vmax = {
+        'RMSE': (0, np.nanpercentile(rmse, 99)),
+        'Scatter Index': (0, np.nanpercentile(scatter, 99)),
+        'Bias': (-np.nanpercentile(np.abs(bias), 99), np.nanpercentile(np.abs(bias), 99))
+    }
+
+    for ax, (title, data) in zip(axes, metrics):
+        m = Basemap(
+            projection='merc',
+            llcrnrlat=np.nanmin(lat), urcrnrlat=np.nanmax(lat),
+            llcrnrlon=np.nanmin(lon), urcrnrlon=np.nanmax(lon),
+            resolution='i', ax=ax
+        )
+        m.drawcoastlines()
+        lat_min, lat_max = np.nanmin(lat), np.nanmax(lat)
+        lon_min, lon_max = np.nanmin(lon), np.nanmax(lon)
+        lat_interval = max(1, int((lat_max - lat_min) // 4))
+        lon_interval = max(1, int((lon_max - lon_min) // 4))
+        m.drawparallels(
+            np.arange(np.floor(lat_min), np.ceil(lat_max) + lat_interval, lat_interval),
+            labels=[1, 0, 0, 0], fontsize=10, linewidth=0.5
+        )
+        m.drawmeridians(
+            np.arange(np.floor(lon_min), np.ceil(lon_max) + lon_interval, lon_interval),
+            labels=[0, 0, 0, 1], fontsize=10, linewidth=0.5
+        )
+
+        x, y = m(lon, lat)
+
+        vmin, vmax = vmin_vmax[title]
+        cmap_used = cmaps[title]
+
+        cs = m.pcolormesh(x, y, data, shading='auto', cmap=cmap_used, vmin=vmin, vmax=vmax)
+        cbar = m.colorbar(cs, location='bottom', pad=0.4)
+        cbar.set_label(f'{title} {metric_name} [{unit}]')
+
+        ax.set_title(f'{title} {metric_name}', fontsize=12)
+
+    fig.suptitle(f'{metric_name}: {compared_name} vs {base_name}', fontsize=14)
+    plt.savefig(os.path.join(output_path, f'{metric_name}_{compared_name}_{base_name}_comparison.png'), bbox_inches='tight')
+    plt.close(fig)
+
+
+def plot_comparison_map(base_map_file, comp_map_file, output_path, plot_swh=True, plot_tp = True):
+    base_nc = xu.open_dataset(base_map_file, decode_times=True)
+    comp_nc = xu.open_dataset(comp_map_file, decode_times=True)
+
+    base_name = os.path.basename(os.path.dirname(base_map_file))
+    compared_name = os.path.basename(os.path.dirname(comp_map_file))
 
     # Use the same structure for both datasets
     base_modig = {
@@ -335,280 +415,139 @@ def plot_comparison_map(base_map_path, compared_map_path, output_path, plot_swh=
     comp_times = comp_modig['Hm0']['time'].values
     _, base_idx, comp_idx = np.intersect1d(base_times, comp_times, return_indices=True)
 
-    # 2. Subset data based on matched times
-    base_hm0 = base_modig['Hm0'].isel(time=base_idx)
-    comp_hm0 = comp_modig['Hm0'].isel(time=comp_idx)
-    base_tp = base_modig['Tp'].isel(time=base_idx)
-    comp_tp = comp_modig['Tp'].isel(time=comp_idx)
+    # Ensure coordinates are unique and sorted
+    base_x = np.unique(np.sort(base_x.values))
+    base_y = np.unique(np.sort(base_y.values))
+    comp_x = np.unique(np.sort(comp_x.values))
+    comp_y = np.unique(np.sort(comp_y.values))
 
-    # --- Harmonize spatial resolution ---
-    # Find which model has fewer points (assume regular grid or x/y shape)
-    base_shape = base_hm0.shape[1:]  # (i, j) or (node,)
-    comp_shape = comp_hm0.shape[1:]
+    # Extract original lon/lat grids (assumed 2D)
+    base_lon = base_nc['x'].values  # shape (n,m)
+    base_lat = base_nc['y'].values
 
-    # Harmonize spatial resolution: always interpolate the higher-res onto the lower-res grid
-    base_n = np.prod(base_shape)
-    comp_n = np.prod(comp_shape)
-    if base_shape == comp_shape:
-        # Shapes match, just use as is
-        base_hm0 = base_hm0.values
-        comp_hm0 = comp_hm0.values
-        base_tp = base_tp.values
-        comp_tp = comp_tp.values
-        model_x = base_x
-        model_y = base_y
-    elif base_n < comp_n:
-        # Interpolate comp onto base grid
-        try:
-            comp_hm0_interp = comp_hm0.interp_like(base_hm0)
-            comp_tp_interp = comp_tp.interp_like(base_tp)
-            comp_x_interp = comp_x.interp_like(base_x)
-            comp_y_interp = comp_y.interp_like(base_y)
-        except Exception:
-            comp_hm0_interp = comp_hm0.interp(x=base_x, y=base_y)
-            comp_tp_interp = comp_tp.interp(x=base_x, y=base_y)
-            comp_x_interp = base_x
-            comp_y_interp = base_y
-        base_hm0 = base_hm0.values
-        comp_hm0 = comp_hm0_interp.values
-        base_tp = base_tp.values
-        comp_tp = comp_tp_interp.values
-        model_x = base_x
-        model_y = base_y
-    else:
-        # Interpolate base onto comp grid
-        try:
-            base_hm0_interp = base_hm0.interp_like(comp_hm0)
-            base_tp_interp = base_tp.interp_like(comp_tp)
-            base_x_interp = base_x.interp_like(comp_x)
-            base_y_interp = base_y.interp_like(comp_y)
-        except Exception:
-            base_hm0_interp = base_hm0.interp(x=comp_x, y=comp_y)
-            base_tp_interp = base_tp.interp(x=comp_x, y=comp_y)
-            base_x_interp = comp_x
-            base_y_interp = comp_y
-        base_hm0 = base_hm0_interp.values
-        comp_hm0 = comp_hm0.values
-        base_tp = base_tp_interp.values
-        comp_tp = comp_tp.values
-        model_x = comp_x
-        model_y = comp_y
+    comp_lon = comp_nc['x'].values
+    comp_lat = comp_nc['y'].values
 
-    # Final shape check to avoid broadcasting errors
-    if base_hm0.shape != comp_hm0.shape or base_tp.shape != comp_tp.shape:
-        min_shape = tuple(np.minimum(base_hm0.shape, comp_hm0.shape))
-        base_hm0 = base_hm0[tuple(slice(0, s) for s in min_shape)]
-        comp_hm0 = comp_hm0[tuple(slice(0, s) for s in min_shape)]
-        base_tp = base_tp[tuple(slice(0, s) for s in min_shape)]
-        comp_tp = comp_tp[tuple(slice(0, s) for s in min_shape)]
-        model_x = model_x.values if hasattr(model_x, 'values') else model_x
-        model_y = model_y.values if hasattr(model_y, 'values') else model_y
-        model_x = model_x[tuple(slice(0, s) for s in min_shape[1:])]
-        model_y = model_y[tuple(slice(0, s) for s in min_shape[1:])]
+    # Overlapping bounding box limits
+    lon_min = max(np.nanmin(base_lon), np.nanmin(comp_lon))
+    lon_max = min(np.nanmax(base_lon), np.nanmax(comp_lon))
+    lat_min = max(np.nanmin(base_lat), np.nanmin(comp_lat))
+    lat_max = min(np.nanmax(base_lat), np.nanmax(comp_lat))
 
-    # 3. Compute statistics in one go
-    valid_mask_hm0 = np.isfinite(base_hm0) & np.isfinite(comp_hm0)
-    valid_mask_tp = np.isfinite(base_tp) & np.isfinite(comp_tp)
+    # Estimate grid spacing (mean difference in unique values)
+    def mean_spacing(arr):
+        unique_sorted = np.sort(np.unique(arr))
+        return np.mean(np.diff(unique_sorted))
 
-    # Replace invalid values with NaN
-    base_hm0[~valid_mask_hm0] = np.nan
-    comp_hm0[~valid_mask_hm0] = np.nan
-    base_tp[~valid_mask_tp] = np.nan
-    comp_tp[~valid_mask_tp] = np.nan
+    base_dx = mean_spacing(base_lon)
+    base_dy = mean_spacing(base_lat)
+    comp_dx = mean_spacing(comp_lon)
+    comp_dy = mean_spacing(comp_lat)
+
+    dx = min(base_dx, comp_dx)
+    dy = min(base_dy, comp_dy)
+
+    # Create common lon/lat grid
+    common_lon = np.arange(lon_min, lon_max, dx)
+    common_lat = np.arange(lat_min, lat_max, dy)
+    common_lon_2d, common_lat_2d = np.meshgrid(common_lon, common_lat)
+
+    # Define x_interp and y_interp for use in Basemap plotting
+    x_interp = common_lon
+    y_interp = common_lat
+
+    def interp_3d_to_common_grid(data_var, orig_lon, orig_lat, target_lon, target_lat):
+        """Interpolate a 3D variable (time, n, m) onto target lon/lat grid.
+        
+        data_var: xarray DataArray or np.ndarray with dims (time, n, m)
+        orig_lon, orig_lat: 2D arrays of original lon/lat coords (n,m)
+        target_lon, target_lat: 2D arrays of target lon/lat coords
+        
+        Returns:
+            interp_data: np.ndarray of shape (time, target_lat.size, target_lon.size)
+        """
+        times = data_var.shape[0]
+        interp_shape = (times, target_lon.shape[0], target_lon.shape[1])
+        interp_data = np.full(interp_shape, np.nan)
+
+        # Flatten original grid points for interpolation
+        points = np.vstack((orig_lon.flatten(), orig_lat.flatten())).T
+
+        for t in range(times):
+            values = data_var[t].flatten()
+            target_points = np.vstack((target_lon.flatten(), target_lat.flatten())).T
+            interp_vals = griddata(points, values, target_points, method='nearest')
+            interp_data[t] = interp_vals.reshape(target_lon.shape)
+        return interp_data
+
+    # Convert to numpy arrays (if not already)
+    base_hm0 = base_modig['Hm0'].values  # shape (time, n, m)
+    comp_hm0 = comp_modig['Hm0'].values
+    base_tp = base_modig['Tp'].values
+    comp_tp = comp_modig['Tp'].values
+
+    # Interpolate to common grid
+    base_hm0_interp = interp_3d_to_common_grid(base_hm0, base_lon, base_lat, common_lon_2d, common_lat_2d)
+    comp_hm0_interp = interp_3d_to_common_grid(comp_hm0, comp_lon, comp_lat, common_lon_2d, common_lat_2d)
+
+    base_tp_interp = interp_3d_to_common_grid(base_tp, base_lon, base_lat, common_lon_2d, common_lat_2d)
+    comp_tp_interp = interp_3d_to_common_grid(comp_tp, comp_lon, comp_lat, common_lon_2d, common_lat_2d)
+
+
+    base_times = base_modig['Hm0']['time'].values
+    comp_times = comp_modig['Hm0']['time'].values
+
+    common_times, base_idx, comp_idx = np.intersect1d(base_times, comp_times, return_indices=True)
+
+    # Subset interpolated data by matching times
+    base_hm0_interp = base_hm0_interp[base_idx]
+    comp_hm0_interp = comp_hm0_interp[comp_idx]
+
+    base_tp_interp = base_tp_interp[base_idx]
+    comp_tp_interp = comp_tp_interp[comp_idx]
+
+    # Create masks for valid data points (both datasets finite)
+    valid_mask_hm0 = np.isfinite(base_hm0_interp) & np.isfinite(comp_hm0_interp)
+    valid_mask_tp = np.isfinite(base_tp_interp) & np.isfinite(comp_tp_interp)
+
+    # Replace invalid points with NaN (to ignore in stats)
+    base_hm0_interp[~valid_mask_hm0] = np.nan
+    comp_hm0_interp[~valid_mask_hm0] = np.nan
+
+    base_tp_interp[~valid_mask_tp] = np.nan
+    comp_tp_interp[~valid_mask_tp] = np.nan
 
     # RMSE
-    rmse_map_swh = np.sqrt(np.nanmean((comp_hm0 - base_hm0)**2, axis=0))
-    rmse_map_tp = np.sqrt(np.nanmean((comp_tp - base_tp)**2, axis=0))
+    rmse_map_swh = np.sqrt(np.nanmean((comp_hm0_interp - base_hm0_interp)**2, axis=0))
+    rmse_map_tp = np.sqrt(np.nanmean((comp_tp_interp - base_tp_interp)**2, axis=0))
 
     # Scatter index
-    scatter_index_map_swh = rmse_map_swh / np.nanmean(base_hm0, axis=0)
-    scatter_index_map_tp = rmse_map_tp / np.nanmean(base_tp, axis=0)
+    scatter_index_map_swh = rmse_map_swh / np.nanmean(base_hm0_interp, axis=0)
+    scatter_index_map_tp = rmse_map_tp / np.nanmean(base_tp_interp, axis=0)
 
     # Bias
-    bias_map_swh = np.nanmean(comp_hm0 - base_hm0, axis=0)
-    bias_map_tp = np.nanmean(comp_tp - base_tp, axis=0)
+    bias_map_swh = np.nanmean(comp_hm0_interp - base_hm0_interp, axis=0)
+    bias_map_tp = np.nanmean(comp_tp_interp - base_tp_interp, axis=0)
 
     if plot_swh:
-        fig, axs = plt.subplots(1, 3, figsize=(22, 7), constrained_layout=True)
-
-        # Add a title above the subplots
-        fig.suptitle(
-            f"Comparison of significant wave height between {base_name} and {compared_name}",
-            fontsize=18, fontweight='bold', y=1.05
-        )
-
-        # --- RMSE map ---
-        ax = axs[0]
-        m_rmse = Basemap(projection='merc',
-            llcrnrlat=model_y.min(), urcrnrlat=model_y.max(),
-            llcrnrlon=model_x.min(), urcrnrlon=model_x.max(),
-            resolution='i', ax=ax)
-        m_rmse.drawcoastlines()
-        ax.set_facecolor('white')
-        x_map, y_map = m_rmse(model_x, model_y)
-
-        beige_to_red = LinearSegmentedColormap.from_list(
-            "red-beige-red",
-            [(0, "#f5f5dc"), (1, "#8b0000")]
-        )
-
-        im1 = m_rmse.pcolormesh(x_map, y_map, rmse_map_swh, cmap=beige_to_red, shading='auto', vmin=0, vmax=np.nanmax(rmse_map_swh))
-        cbar1 = plt.colorbar(im1, ax=ax, orientation='vertical', pad=0.02)
-        cbar1.set_label('RMSE [m]')
-        ax.set_title('Hm0 RMSE between the runs')
-        m_rmse.drawparallels(np.arange(np.floor(model_y.min()), np.ceil(model_y.max()), 2),
-                labels=[1,0,0,0], fontsize=10, linewidth=0.5)
-        m_rmse.drawmeridians(np.arange(np.floor(model_x.min()), np.ceil(model_x.max()), 2),
-                labels=[0,0,0,1], fontsize=10, linewidth=0.5)
-        ax.set_xlabel('Longitude [deg]', labelpad=25)  # Increased labelpad for more space
-        ax.set_ylabel('Latitude [deg]', labelpad=40)   # Increased labelpad for more space
-
-        # --- Scatter Index map ---
-        ax = axs[1]
-        m_si = Basemap(projection='merc',
-            llcrnrlat=model_y.min(), urcrnrlat=model_y.max(),
-            llcrnrlon=model_x.min(), urcrnrlon=model_x.max(),
-            resolution='i', ax=ax)
-        m_si.drawcoastlines()
-        ax.set_facecolor('white')
-        x_map, y_map = m_si(model_x, model_y)
-        im2 = m_si.pcolormesh(x_map, y_map, scatter_index_map_swh, cmap=beige_to_red, shading='auto', vmin=0, vmax=np.nanmax(scatter_index_map_swh))
-        cbar2 = plt.colorbar(im2, ax=ax, orientation='vertical', pad=0.02)
-        cbar2.set_label('Scatter Index')
-        ax.set_title('Hm0 Scatter Index between the runs')
-        m_si.drawparallels(np.arange(np.floor(model_y.min()), np.ceil(model_y.max()), 2),
-            labels=[1,0,0,0], fontsize=10, linewidth=0.5)
-        m_si.drawmeridians(np.arange(np.floor(model_x.min()), np.ceil(model_x.max()), 2),
-            labels=[0,0,0,1], fontsize=10, linewidth=0.5)
-        ax.set_xlabel('Longitude [deg]', labelpad=25)
-        ax.set_ylabel('Latitude [deg]', labelpad=40)
-
-        # --- Bias map ---
-        ax = axs[2]
-        m_bias = Basemap(projection='merc',
-            llcrnrlat=model_y.min(), urcrnrlat=model_y.max(),
-            llcrnrlon=model_x.min(), urcrnrlon=model_x.max(),
-            resolution='i', ax=ax)
-        m_bias.drawcoastlines()
-        ax.set_facecolor('white')
-        x_map, y_map = m_bias(model_x, model_y)
-
-        vmax = np.nanmax(np.abs(bias_map_swh))
-        if np.isnan(vmax) or vmax == 0:
-            vmax = 1
-        norm = TwoSlopeNorm(vmin=-vmax, vcenter=0, vmax=vmax)
-
-        colors = [
-            (1, 0, 0),
-            (0.96, 0.96, 0.86),
-            (0, 0.2, 1)
-        ]
-        cmap_bias = LinearSegmentedColormap.from_list('red-beige-blue', colors, N=256)
-
-        im3 = m_bias.pcolormesh(x_map, y_map, bias_map_swh, cmap=cmap_bias, norm=norm, shading='auto')
-        cbar3 = plt.colorbar(im3, ax=ax, orientation='vertical', pad=0.02)
-        cbar3.set_label('Bias [m]')
-        ax.set_title('Hm0 Bias between the runs')
-        m_bias.drawparallels(np.arange(np.floor(model_y.min()), np.ceil(model_y.max()), 2),
-                labels=[1,0,0,0], fontsize=10, linewidth=0.5)
-        m_bias.drawmeridians(np.arange(np.floor(model_x.min()), np.ceil(model_x.max()), 2),
-                labels=[0,0,0,1], fontsize=10, linewidth=0.5)
-        ax.set_xlabel('Longitude [deg]', labelpad=25)
-        ax.set_ylabel('Latitude [deg]', labelpad=40)
-
-        plt.savefig(os.path.join(output_path, f'{base_name}_vs_{compared_name}_Hm0_comparison.png'), bbox_inches='tight')
-        plt.close(fig)
+        # Hm0 (SWH)
+        plot_metrics_subplot(
+            common_lon_2d, common_lat_2d,
+            rmse_map_swh, bias_map_swh, scatter_index_map_swh,
+            metric_name='Hm0', unit='m',
+            compared_name=compared_name, base_name=base_name,
+            output_path=output_path
+        )     
 
     if plot_tp:
-        fig, axs = plt.subplots(1, 3, figsize=(22, 7), constrained_layout=True)
-
-        # Add a title above the subplots
-        fig.suptitle(
-            f"Comparison of significant peak period between {base_name} and {compared_name}",
-            fontsize=18, fontweight='bold', y=1.05
+        # Tp
+        plot_metrics_subplot(
+            common_lon_2d, common_lat_2d,
+            rmse_map_tp, bias_map_tp, scatter_index_map_tp,
+            metric_name='Tp', unit='s',
+            compared_name=compared_name, base_name=base_name,
+            output_path=output_path
         )
-
-        # --- RMSE map ---
-        ax = axs[0]
-        m_rmse = Basemap(projection='merc',
-            llcrnrlat=model_y.min(), urcrnrlat=model_y.max(),
-            llcrnrlon=model_x.min(), urcrnrlon=model_x.max(),
-            resolution='i', ax=ax)
-        m_rmse.drawcoastlines()
-        ax.set_facecolor('white')
-        x_map, y_map = m_rmse(model_x, model_y)
-
-        beige_to_red = LinearSegmentedColormap.from_list(
-            "red-beige-red",
-            [(0, "#f5f5dc"), (1, "#8b0000")]
-        )
-
-        im1 = m_rmse.pcolormesh(x_map, y_map, rmse_map_tp, cmap=beige_to_red, shading='auto', vmin=0, vmax=np.nanmax(rmse_map_tp))
-        cbar1 = plt.colorbar(im1, ax=ax, orientation='vertical', pad=0.02)
-        cbar1.set_label('RMSE [s]')
-        ax.set_title('Tp RMSE between the runs')
-        m_rmse.drawparallels(np.arange(np.floor(model_y.min()), np.ceil(model_y.max()), 2),
-                labels=[1,0,0,0], fontsize=10, linewidth=0.5)
-        m_rmse.drawmeridians(np.arange(np.floor(model_x.min()), np.ceil(model_x.max()), 2),
-                labels=[0,0,0,1], fontsize=10, linewidth=0.5)
-        ax.set_xlabel('Longitude [deg]', labelpad=25)
-        ax.set_ylabel('Latitude [deg]', labelpad=40)
-
-        # --- Scatter Index map ---
-        ax = axs[1]
-        m_si = Basemap(projection='merc',
-            llcrnrlat=model_y.min(), urcrnrlat=model_y.max(),
-            llcrnrlon=model_x.min(), urcrnrlon=model_x.max(),
-            resolution='i', ax=ax)
-        m_si.drawcoastlines()
-        ax.set_facecolor('white')
-        x_map, y_map = m_si(model_x, model_y)
-        im2 = m_si.pcolormesh(x_map, y_map, scatter_index_map_tp, cmap=beige_to_red, shading='auto', vmin=0, vmax=np.nanmax(scatter_index_map_tp))
-        cbar2 = plt.colorbar(im2, ax=ax, orientation='vertical', pad=0.02)
-        cbar2.set_label('Tp Scatter Index between runs')
-        ax.set_title('Scatter Index: Model Tp vs Model Tp (comparison)')
-        m_si.drawparallels(np.arange(np.floor(model_y.min()), np.ceil(model_y.max()), 2),
-            labels=[1,0,0,0], fontsize=10, linewidth=0.5)
-        m_si.drawmeridians(np.arange(np.floor(model_x.min()), np.ceil(model_x.max()), 2),
-            labels=[0,0,0,1], fontsize=10, linewidth=0.5)
-        ax.set_xlabel('Longitude [deg]', labelpad=25)
-        ax.set_ylabel('Latitude [deg]', labelpad=40)
-
-        # --- Bias map ---
-        ax = axs[2]
-        m_bias = Basemap(projection='merc',
-            llcrnrlat=model_y.min(), urcrnrlat=model_y.max(),
-            llcrnrlon=model_x.min(), urcrnrlon=model_x.max(),
-            resolution='i', ax=ax)
-        m_bias.drawcoastlines()
-        ax.set_facecolor('white')
-        x_map, y_map = m_bias(model_x, model_y)
-
-        vmax = np.nanmax(np.abs(bias_map_tp))
-        if np.isnan(vmax) or vmax == 0:
-            vmax = 1
-        norm = TwoSlopeNorm(vmin=-vmax, vcenter=0, vmax=vmax)
-
-        colors = [
-            (1, 0, 0),
-            (0.96, 0.96, 0.86),
-            (0, 0.2, 1)
-        ]
-        cmap_bias = LinearSegmentedColormap.from_list('red-beige-blue', colors, N=256)
-
-        im3 = m_bias.pcolormesh(x_map, y_map, bias_map_tp, cmap=cmap_bias, norm=norm, shading='auto')
-        cbar3 = plt.colorbar(im3, ax=ax, orientation='vertical', pad=0.02)
-        cbar3.set_label('Bias [s]')
-        ax.set_title('Tp Bias between the runs')
-        m_bias.drawparallels(np.arange(np.floor(model_y.min()), np.ceil(model_y.max()), 2),
-                labels=[1,0,0,0], fontsize=10, linewidth=0.5)
-        m_bias.drawmeridians(np.arange(np.floor(model_x.min()), np.ceil(model_x.max()), 2),
-                labels=[0,0,0,1], fontsize=10, linewidth=0.5)
-        ax.set_xlabel('Longitude [deg]', labelpad=25)
-        ax.set_ylabel('Latitude [deg]', labelpad=40)
-
-        plt.savefig(os.path.join(output_path, f'{base_name}_vs_{compared_name}_tp_comparison.png'), bbox_inches='tight')
-        plt.close(fig)
 
 for i, model_path in enumerate(map_filepaths[1:], start=1):
     output_path = os.path.join(base_path, '04_modelruns', model_names[i], '1_postprocessing')  # Add the postprocessing to the relevant model directory
@@ -616,3 +555,172 @@ for i, model_path in enumerate(map_filepaths[1:], start=1):
     if not os.path.exists(output_path):
         os.makedirs(output_path)
     plot_comparison_map(map_filepaths[0], model_path, output_path, plot_swh=True, plot_tp=True)
+
+
+
+def plot_rmse_diff_maps(base_nc, comp_nc, era5_data, output_dir, run_a_name="Run A", run_b_name="Run B"):
+    # Model grid
+    model_x_a = base_nc['x'].values
+    model_y_a = base_nc['y'].values
+    model_x_b = comp_nc['x'].values
+    model_y_b = comp_nc['y'].values
+
+    # ERA5 grid
+    era5_lats = era5_data.latitude.values
+    era5_lons = era5_data.longitude.values
+    era5_times = era5_data.valid_time.values
+
+    # Create meshgrid for ERA5 coordinates (lat/lon)
+    era5_lon_grid, era5_lat_grid = np.meshgrid(era5_lons, era5_lats)
+    shape = (len(era5_lats), len(era5_lons))
+
+    # Prepare model fields
+    base_modig = {
+        "Hm0": base_nc["hm0"],
+        "Tp": base_nc["tp"],
+    }
+    comp_modig = {
+        "Hm0": comp_nc["hm0"],
+        "Tp": comp_nc["tp"],
+    }
+
+    # Time alignment
+    model_times_a = base_modig['Hm0']['time'].values
+    model_times_b = comp_modig['Hm0']['time'].values
+    _, era5_idx_a, model_idx_a = np.intersect1d(era5_times, model_times_a, return_indices=True)
+    _, era5_idx_b, model_idx_b = np.intersect1d(era5_times, model_times_b, return_indices=True)
+
+    # Output arrays
+    rmse_map_swh_a = np.full(shape, np.nan)
+    rmse_map_swh_b = np.full(shape, np.nan)
+    rmse_diff_map_swh = np.full(shape, np.nan)
+
+    rmse_map_tp_a = np.full(shape, np.nan)
+    rmse_map_tp_b = np.full(shape, np.nan)
+    rmse_diff_map_tp = np.full(shape, np.nan)
+
+    # Pre-extract model fields to avoid repeated I/O
+    hm0_all_a = base_modig['Hm0'][:, :, :].values
+    tp_all_a = base_modig['Tp'][:, :, :].values
+    hm0_all_b = comp_modig['Hm0'][:, :, :].values
+    tp_all_b = comp_modig['Tp'][:, :, :].values
+
+    # Prepare KDTree for nearest-neighbor interpolation (handles NaNs)
+    model_coords_a = np.column_stack((model_y_a.ravel(), model_x_a.ravel()))
+    tree_a = cKDTree(model_coords_a)
+    model_coords_b = np.column_stack((model_y_b.ravel(), model_x_b.ravel()))
+    tree_b = cKDTree(model_coords_b)
+
+    # Main loop (over grid points)
+    for idx, (i, j) in enumerate(np.ndindex(shape)):
+        # --- SWH ---
+        era5_swh_ts = era5_data['swh'][:, i, j].values
+
+        # Run A: nearest-neighbor, skip NaNs
+        _, model_indices_flat_a = tree_a.query([[era5_lats[i], era5_lons[j]]])
+        n_a, m_a = np.unravel_index(model_indices_flat_a[0], model_x_a.shape)
+        model_hm0_ts_full_a = hm0_all_a[:, n_a, m_a]
+        model_hm0_ts_a = np.full_like(era5_swh_ts, np.nan)
+        if len(model_idx_a) > 0:
+            model_hm0_ts_a[era5_idx_a] = model_hm0_ts_full_a[model_idx_a]
+        mask = np.isfinite(model_hm0_ts_a) & np.isfinite(era5_swh_ts)
+        if np.any(mask):
+            rmse_map_swh_a[i, j] = np.sqrt(np.nanmean((model_hm0_ts_a[mask] - era5_swh_ts[mask]) ** 2))
+
+        # Run B: nearest-neighbor, skip NaNs
+        _, model_indices_flat_b = tree_b.query([[era5_lats[i], era5_lons[j]]])
+        n_b, m_b = np.unravel_index(model_indices_flat_b[0], model_x_b.shape)
+        model_hm0_ts_full_b = hm0_all_b[:, n_b, m_b]
+        model_hm0_ts_b = np.full_like(era5_swh_ts, np.nan)
+        if len(model_idx_b) > 0:
+            model_hm0_ts_b[era5_idx_b] = model_hm0_ts_full_b[model_idx_b]
+        mask = np.isfinite(model_hm0_ts_b) & np.isfinite(era5_swh_ts)
+        if np.any(mask):
+            rmse_map_swh_b[i, j] = np.sqrt(np.nanmean((model_hm0_ts_b[mask] - era5_swh_ts[mask]) ** 2))
+
+        # Difference
+        if np.isfinite(rmse_map_swh_a[i, j]) and np.isfinite(rmse_map_swh_b[i, j]):
+            rmse_diff_map_swh[i, j] = rmse_map_swh_b[i, j] - rmse_map_swh_a[i, j]
+
+        # --- Tp ---
+        era5_mwp_ts = era5_data['mwp'][:, i, j].values
+
+        # Run A
+        model_tp_ts_full_a = tp_all_a[:, n_a, m_a]
+        model_tp_ts_a = np.full_like(era5_mwp_ts, np.nan)
+        if len(model_idx_a) > 0:
+            model_tp_ts_a[era5_idx_a] = model_tp_ts_full_a[model_idx_a]
+        mask = np.isfinite(model_tp_ts_a) & np.isfinite(era5_mwp_ts)
+        if np.any(mask):
+            rmse_map_tp_a[i, j] = np.sqrt(np.nanmean((model_tp_ts_a[mask] - era5_mwp_ts[mask]) ** 2))
+
+        # Run B
+        model_tp_ts_full_b = tp_all_b[:, n_b, m_b]
+        model_tp_ts_b = np.full_like(era5_mwp_ts, np.nan)
+        if len(model_idx_b) > 0:
+            model_tp_ts_b[era5_idx_b] = model_tp_ts_full_b[model_idx_b]
+        mask = np.isfinite(model_tp_ts_b) & np.isfinite(era5_mwp_ts)
+        if np.any(mask):
+            rmse_map_tp_b[i, j] = np.sqrt(np.nanmean((model_tp_ts_b[mask] - era5_mwp_ts[mask]) ** 2))
+
+        # Difference
+        if np.isfinite(rmse_map_tp_a[i, j]) and np.isfinite(rmse_map_tp_b[i, j]):
+            rmse_diff_map_tp[i, j] = rmse_map_tp_b[i, j] - rmse_map_tp_a[i, j]
+
+    # --- Plot RMSE difference maps ---
+    fig, axs = plt.subplots(1, 2, figsize=(16, 7), constrained_layout=True)
+
+    # --- SWH RMSE diff ---
+    ax = axs[0]
+    m_rmse = Basemap(projection='merc',
+                     llcrnrlat=era5_lats.min(), urcrnrlat=era5_lats.max(),
+                     llcrnrlon=era5_lons.min(), urcrnrlon=era5_lons.max(),
+                     resolution='i', ax=ax)
+    m_rmse.drawcoastlines()
+    ax.set_facecolor('white')
+    x_map, y_map = m_rmse(era5_lon_grid, era5_lat_grid)
+    vmax = np.nanmax(np.abs(rmse_diff_map_swh))
+    norm = TwoSlopeNorm(vmin=-vmax, vcenter=0, vmax=vmax)
+    cmap = LinearSegmentedColormap.from_list('red-beige-green', [(1,0,0), (0.96,0.96,0.86), (0,0.7,0)], N=256)
+    im1 = m_rmse.pcolormesh(x_map, y_map, rmse_diff_map_swh, cmap=cmap, norm=norm, shading='auto')
+    cbar1 = plt.colorbar(im1, ax=ax, orientation='vertical', pad=0.02)
+    cbar1.set_label(f'ΔRMSE [m] ({run_b_name} - {run_a_name})')
+    ax.set_title(f'ΔRMSE SWH: ({run_b_name} - {run_a_name}) vs ERA5')
+    parallels = np.arange(np.floor(era5_lats.min()), np.ceil(era5_lats.max()), 2)
+    meridians = np.arange(np.floor(era5_lons.min()), np.ceil(era5_lons.max()), 2)
+    m_rmse.drawparallels(parallels, labels=[1,0,0,0], fontsize=10, linewidth=0.5)
+    m_rmse.drawmeridians(meridians, labels=[0,0,0,1], fontsize=10, linewidth=0.5)
+
+    # --- Tp RMSE diff ---
+    ax = axs[1]
+    m_rmse = Basemap(projection='merc',
+                     llcrnrlat=era5_lats.min(), urcrnrlat=era5_lats.max(),
+                     llcrnrlon=era5_lons.min(), urcrnrlon=era5_lons.max(),
+                     resolution='i', ax=ax)
+    m_rmse.drawcoastlines()
+    ax.set_facecolor('white')
+    x_map, y_map = m_rmse(era5_lon_grid, era5_lat_grid)
+    vmax = np.nanmax(np.abs(rmse_diff_map_tp))
+    norm = TwoSlopeNorm(vmin=-vmax, vcenter=0, vmax=vmax)
+    im2 = m_rmse.pcolormesh(x_map, y_map, rmse_diff_map_tp, cmap=cmap, norm=norm, shading='auto')
+    cbar2 = plt.colorbar(im2, ax=ax, orientation='vertical', pad=0.02)
+    cbar2.set_label(f'ΔRMSE [s] ({run_b_name} - {run_a_name})')
+    ax.set_title(f'ΔRMSE Tp: ({run_b_name} - {run_a_name}) vs ERA5')
+    m_rmse.drawparallels(parallels, labels=[1,0,0,0], fontsize=10, linewidth=0.5)
+    m_rmse.drawmeridians(meridians, labels=[0,0,0,1], fontsize=10, linewidth=0.5)
+
+    # Save plots
+    os.makedirs(output_dir, exist_ok=True)
+    fig.savefig(os.path.join(output_dir, f"rmse_diff_maps_{run_a_name}_vs_{run_b_name}.png"), dpi=200)
+    plt.close(fig)
+
+for i, path in enumerate(map_filepaths[1:], 1):
+    output_path = os.path.join(base_path, '04_modelruns', model_names[i], '1_postprocessing')  # Add the postprocessing to the relevant model directory
+    plot_rmse_diff_maps(
+        base_nc=xr.open_dataset(map_filepaths[0]),
+        comp_nc=xr.open_dataset(path),
+        era5_data=era5_data,
+        output_dir=output_path,
+        run_a_name=model_names[0],
+        run_b_name=model_names[i]
+    )

@@ -7,9 +7,9 @@ import matplotlib.pyplot as plt
 plt.close("all")
 import os
 
-name = 'Pia'
-start_date = dt.datetime(2023, 12, 19)  # Year, Month, Day
-end_date = dt.datetime(2023, 12, 23)  # Year, Month, Day
+name = '2024'
+start_date = dt.datetime(2024, 1, 1)  # Year, Month, Day
+end_date = dt.datetime(2024, 12, 31)  # Year, Month, Day
 
 # Set the path to save the data
 main_path = r'C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\01_data\Waterinfo_RWS'

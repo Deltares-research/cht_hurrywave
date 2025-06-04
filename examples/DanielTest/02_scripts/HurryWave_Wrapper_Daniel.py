@@ -20,7 +20,7 @@ main_path  = os.path.join(r'C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_C
 if not os.path.exists(main_path):
     os.mkdir(main_path)
 
-name = '21_25_April_2025_dx_0point15'
+name = '21_25_April_2025_dx_0point25_spectral'
 data_name = 'NorthSea_April2025'
 
 model_setup = os.path.join(main_path, '04_modelruns', name)
@@ -46,8 +46,8 @@ surge = 0 # Add a surge to the water level [m]
 specs = {
     'mmax': 421,                    # Number of grid points in x-direction
     'nmax': 481,                    # Number of grid points in y-direction
-    'dx': 0.15,                     # Grid spacing in x-direction [degrees]
-    'dy': 0.15,              # Grid spacing in y-direction [degrees]
+    'dx': 0.25,                     # Grid spacing in x-direction [degrees]
+    'dy': 0.25,              # Grid spacing in y-direction [degrees]
     'x0': -12,                      # X-coordinate of the first grid cell corner (1,1) in projected UTM zone [m]
     'y0': 48,                       # Y-coordinate of the first grid cell corner (1,1) in projected UTM zone [m]
     'rotation': 0.0,                # Grid rotation from x-axis in anti-clockwise direction [degrees]
@@ -98,6 +98,7 @@ specs = {
     'depfile': "hurrywave.dep",       # Elevation (bathymetry and topography) at grid cell centres above reference level [m]
     'mskfile': "hurrywave.msk",       # Mask for inactive (0), active (1), boundary (2), or outflow (3) grid cells
     'obsfile': "hurrywave.obs",       # Observation points file for output time-series at specific locations
+    'ospfile': "hurrywave.osp",       # Observation points file for output spectra at specific locations
     'amufile': "hurrywave.amu",            # Delft3D-meteo ASCII wind x-component [m/s]
     'amvfile': "hurrywave.amv",            # Delft3D-meteo ASCII wind y-component [m/s]
 
@@ -192,14 +193,21 @@ if Use_custom_obs:
     with open(obs_file, 'w') as f:
         for lon, lat, name in zip(custom_x_etrs89, custom_y_etrs89, custom_names):
             f.write(f"{lon:.6f} {lat:.6f} # {name}\n")
+    
+    osp_file = os.path.join(model_setup, 'hurrywave.osp')
+    with open(osp_file, 'w') as f:
+        for lon, lat, name in zip(custom_x_etrs89, custom_y_etrs89, custom_names):
+            f.write(f"{lon:.6f} {lat:.6f} # {name}\n")
 
       
 else:
     obs_file = os.path.join(model_setup, 'hurrywave.obs')
+    osp_file = os.path.join(model_setup, 'hurrywave.osp')
 
     # Add the wave buoy measurements
     observation_points_regular.write()
     observation_points_spectra.write()
+
 
 # Bottom grid
 x0_b = -15
