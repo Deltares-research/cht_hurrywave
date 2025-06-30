@@ -90,6 +90,7 @@ class HurryWaveInput:
         self.variables.winddrag = "zijlema"
         self.variables.cdcap = 0.0025
 
+        self.variables.qtrfile = None
         self.variables.depfile = None
         self.variables.mskfile = None
         self.variables.bndfile = None
@@ -150,6 +151,16 @@ class HurryWaveInput:
         file_name = os.path.join(self.model.path, "hurrywave.inp")
         variables = copy.copy(self.variables)
         # Remove some input variables
+
+        if self.model.input.variables.qtrfile is not None:
+            variables.x0 = None
+            variables.y0 = None
+            variables.dx = None
+            variables.dy = None
+            variables.mmax = None
+            variables.nmax = None
+            variables.rotation = None
+
         if self.model.boundary_conditions.forcing == "spectra":
             variables.bhsfile = None
             variables.btpfile = None

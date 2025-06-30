@@ -59,163 +59,232 @@ class WaveBlocking:
               quiet=True,
               progress_bar=None,
               showcase=False):  
-        
-        grid = self.model.grid
+       
+        refi        = nr_subgrid_pixels
+        self.nbins  = nr_dirs
+        nrmax       = 2000
 
-        refi  = nr_subgrid_pixels
-        self.nbins = nr_dirs
+        # Get some information from the grid
+        grid        = self.model.grid.data
+        nr_cells    = grid.nr_cells
+        nr_ref_levs = grid.nr_refinement_levels
+        x0          = grid.xuds.attrs["x0"]
+        y0          = grid.xuds.attrs["y0"]
+        nmax        = grid.xuds.attrs["nmax"]
+        mmax        = grid.xuds.attrs["mmax"]
+        dx          = grid.xuds.attrs["dx"]
+        dy          = grid.xuds.attrs["dy"]
+        rotation    = grid.xuds.attrs["rotation"]        
+        cosrot      = grid.cosrot
+        sinrot      = grid.sinrot
+        level       = grid.xuds["level"].values[:] - 1
+        n           = grid.xuds["n"].values[:] - 1
+        m           = grid.xuds["m"].values[:] - 1
 
         counter = 0
 
         # Step 1: Create a dataset of zeros
-        dims = ('directional_bins', 'latitude', 'longitude')
-        shape = (nr_dirs, grid.nmax, grid.mmax)  # Example dimensions
+        dims = ('directional_bins', 'cells')
+        shape = (nr_dirs, nr_cells)  # Example dimensions
         self.block_coefficient  = np.zeros(shape, dtype=float)
-                
-        cosrot = np.cos(grid.rotation*np.pi/180)
-        sinrot = np.sin(grid.rotation*np.pi/180)
-        nrmax  = 2000
-       
-        n0 = 0
-        n1 = grid.nmax - 1 # + 1 # add extra cell to compute u and v in the last row/column
-        m0 = 0
-        m1 = grid.mmax - 1 # + 1 # add extra cell to compute u and v in the last row/column
+
+        # This stuff is already stored in the grid!                
+
+        # Grid neighbors (subtract 1 from indices to get zero-based indices)
+
+        # Determine first indices and number of cells per refinement level
+        ifirst = np.zeros(nr_ref_levs, dtype=int)
+        ilast = np.zeros(nr_ref_levs, dtype=int)
+        nr_cells_per_level = np.zeros(nr_ref_levs, dtype=int)
+        ireflast = -1
+        for ic in range(nr_cells):
+            if level[ic] > ireflast:
+                ifirst[level[ic]] = ic
+                ireflast = level[ic]
+        for ilev in range(nr_ref_levs - 1):
+            ilast[ilev] = ifirst[ilev + 1] - 1
+        ilast[nr_ref_levs - 1] = nr_cells - 1
+        for ilev in range(nr_ref_levs):
+            nr_cells_per_level[ilev] = ilast[ilev] - ifirst[ilev] + 1
+
+
+        # Loop through all levels
+        for ilev in range(nr_ref_levs):
+
+            # Make blocks off cells in this level only
+            cell_indices_in_level = np.arange(ifirst[ilev], ilast[ilev] + 1, dtype=int)
+            nr_cells_in_level = np.size(cell_indices_in_level)
+
+            if nr_cells_in_level == 0:
+                continue
+
+            n0 = np.min(n[ifirst[ilev] : ilast[ilev] + 1])
+            n1 = np.max(
+                n[ifirst[ilev] : ilast[ilev] + 1]
+            )  # + 1 # add extra cell to compute u and v in the last row/column
+            m0 = np.min(m[ifirst[ilev] : ilast[ilev] + 1])
+            m1 = np.max(
+                m[ifirst[ilev] : ilast[ilev] + 1]
+            )  # + 1 # add extra cell to compute u and v in the last row/column
+
+            dxi = dx / 2**ilev  # cell size at this level
+            dyi = dy / 2**ilev  # cell size at this level
+            dxp = dxi / refi    # size of subgrid pixel
+            dyp = dyi / refi    # size of subgrid pixel
+
+            nrcb = int(np.floor(nrmax / refi))         # nr of regular cells in a block
+            nrbn = int(np.ceil((n1 - n0 + 1) / nrcb))  # nr of blocks in n direction
+            nrbm = int(np.ceil((m1 - m0 + 1) / nrcb))  # nr of blocks in m direction
+
+        # n0 = 0
+        # n1 = grid.nmax - 1 # + 1 # add extra cell to compute u and v in the last row/column
+        # m0 = 0
+        # m1 = grid.mmax - 1 # + 1 # add extra cell to compute u and v in the last row/column
         
-        dx   = grid.dx      # cell size
-        dy   = grid.dy      # cell size
-        dxp  = dx/refi      # size of subgrid pixel
-        dyp  = dy/refi      # size of subgrid pixel
+        # dx   = grid.dx      # cell size
+        # dy   = grid.dy      # cell size
+        # dxp  = dx / refi      # size of subgrid pixel
+        # dyp  = dy / refi      # size of subgrid pixel
         
-        nrcb = int(np.floor(nrmax/refi))         # nr of regular cells in a block            
-        nrbn = int(np.ceil((n1 - n0 + 1)/nrcb))  # nr of blocks in n direction
-        nrbm = int(np.ceil((m1 - m0 + 1)/nrcb))  # nr of blocks in m direction
+        # nrcb = int(np.floor(nrmax/refi))         # nr of regular cells in a block            
+        # nrbn = int(np.ceil((n1 - n0 + 1)/nrcb))  # nr of blocks in n direction
+        # nrbm = int(np.ceil((m1 - m0 + 1)/nrcb))  # nr of blocks in m direction
 
-        if not quiet:
-            print("Number of regular cells in a block : " + str(nrcb))
-            print("Number of grid cells    : " + str(grid.nmax))
-            print("Number of grid cells    : " + str(grid.mmax))
-        
-        if not quiet:
-            print("Grid size of HW grid             : dx= " + str(dx) + ", dy= " + str(dy))
-            print("Grid size of waveblocking pixels        : dx= " + str(dxp) + ", dy= " + str(dyp))
-            print("Grid size of directional bins        : directions = " + str(nr_dirs))
+            if not quiet:
+                print("Number of regular cells in a block : " + str(nrcb))
+                print("Number of grid cells    : " + str(grid.nmax))
+                print("Number of grid cells    : " + str(grid.mmax))
+            
+            if not quiet:
+                print("Grid size of HW grid             : dx= " + str(dx) + ", dy= " + str(dy))
+                print("Grid size of waveblocking pixels        : dx= " + str(dxp) + ", dy= " + str(dyp))
+                print("Grid size of directional bins        : directions = " + str(nr_dirs))
 
-        if progress_bar:
-            progress_bar.set_text("               Computing wave blocking coefficients ...                ")
-            progress_bar.set_minimum(0)
-            progress_bar.set_maximum(nrbm * nrbn)
-            progress_bar.set_value(0)
-                            
-        ## Loop through blocks
-        ib = 0
-        for ii in range(nrbm):
-            for jj in range(nrbn):
-
-                if progress_bar:
-                    # perc_ready = int(100*ib/(nrbn*nrbm))
-                    progress_bar.set_value(ib)
-                    if progress_bar.was_canceled():
-                        return False
-
-                ib += 1
-
-                if not quiet:
-                    print("--------------------------------------------------------------")
-                    print("Processing block " + str(ib) + " of " + str(nrbn*nrbm) + " ...")
-                    print("Getting bathymetry data ...")
-
-                bn0 = n0  + jj*nrcb               # Index of first n in block
-                bn1 = min(bn0 + nrcb - 1, n1) + 1 # Index of last n in block (cut off excess above, but add extra cell to compute u and v in the last row)
-                bm0 = m0  + ii*nrcb               # Index of first m in block
-                bm1 = min(bm0 + nrcb - 1, m1) + 1 # Index of last m in block (cut off excess to the right, but add extra cell to compute u and v in the last column)
-
-                # Now build the pixel matrix
-                x00 = 0.5*dxp + bm0*refi*dyp
-                x01 = x00 + (bm1 - bm0 + 1)*refi*dxp
-                y00 = 0.5*dyp + bn0*refi*dyp
-                y01 = y00 + (bn1 - bn0 + 1)*refi*dyp
-                
-                x0 = np.arange(x00, x01, dxp)
-                y0 = np.arange(y00, y01, dyp)
-                xg0, yg0 = np.meshgrid(x0, y0)
-                # Rotate and translate
-                xg = grid.x0 + cosrot*xg0 - sinrot*yg0
-                yg = grid.y0 + sinrot*xg0 + cosrot*yg0                    
-
-                # Clear variables
-                del x0, y0, xg0, yg0
-                
-                # Initialize depth of subgrid at NaN
-                zg = np.full(np.shape(xg), np.nan)
-
-                # Get bathy on refined grid
-                # Start using HydroMT for this at some point
-                if bathymetry_database is not None:
-                    # Getting bathymetry array zg from database
-                    try: 
-                        zg = bathymetry_database.get_bathymetry_on_grid(xg, yg,
-                                                                        self.model.crs,
-                                                                        bathymetry_sets)
-                    except Exception as e:
-                        print(e)
-                        pass
-                        return
-
-                else:
-                    # Getting bathymetry array zg from tif file(s)                      
-                    # Loop through bathymetry datasets
-                    for ibathy, bathymetry in enumerate(bathymetry_sets):
-                        # Check if there are NaNs left in this block 
-                        if np.isnan(zg).any():
-                            try:
-                                if bathymetry.attrs["type"] == "tif_file":
-                                    xgb, ygb = xg, yg
-                                    # Get DEM data (ddb format for now)
-                                    xb, yb, zb = bathymetry.x, bathymetry.y, bathymetry[0].data
-                                    if zb is not np.nan:
-                                        if not np.isnan(zb).all():
-                                            zg1 = interp2(xb, yb, zb, xgb, ygb)
-                                            isn = np.where(np.isnan(zg))
-                                            zg[isn] = zg1[isn]
-                                # clear temp variables
-                                del xb, yb, zb
-                            except Exception as e:
-                                print(e)
-                                return
-                
-                # Now compute subgrid properties
-                if not quiet:
-                    print("Computing blocking coefficients ...")
-
-                # Calculate angles
-                nvec = int(nr_dirs / 2)
-                dtheta = 360.0/nr_dirs    
-                angles = np.linspace(0.5 * dtheta, 180.0 + 0.5 * dtheta, nvec, endpoint=False) 
-                radians = np.deg2rad(angles)
-                vectors = np.array([[np.cos(angle), np.sin(angle), 0] for angle in radians])
-
-                # Loop through all active cells in this block
-                for m in range(bm0, bm1):
-
-                    if not quiet:
-                        print(f"Processing column {m - bm0 + 1} of {bm1 - bm0 + 1} ...")
+            if progress_bar:
+                progress_bar.set_text("               Computing wave blocking coefficients ...                ")
+                progress_bar.set_minimum(0)
+                progress_bar.set_maximum(nrbm * nrbn)
+                progress_bar.set_value(0)
+                                
+            ## Loop through blocks
+            ib = 0
+            for ii in range(nrbm):
+                for jj in range(nrbn):
 
                     if progress_bar:
+                        # perc_ready = int(100*ib/(nrbn*nrbm))
+                        progress_bar.set_value(ib)
                         if progress_bar.was_canceled():
                             return False
 
-                    for n in range(bn0, bn1):
-                        
-                        if grid.ds.mask.values[n, m] < 1:
-                            # Check if computational cell is active
-                            continue
-                        
-                        # if not quiet:
-                        #     print(f"Processing cell n={n} - m={m} ...")
+                    ib += 1
+
+                    if not quiet:
+                        print("--------------------------------------------------------------")
+                        print("Processing block " + str(ib) + " of " + str(nrbn*nrbm) + " ...")
+                        print("Getting bathymetry data ...")
+
+                    bn0 = n0  + jj*nrcb               # Index of first n in block
+                    bn1 = min(bn0 + nrcb - 1, n1) + 1 # Index of last n in block (cut off excess above, but add extra cell to compute u and v in the last row)
+                    bm0 = m0  + ii*nrcb               # Index of first m in block
+                    bm1 = min(bm0 + nrcb - 1, m1) + 1 # Index of last m in block (cut off excess to the right, but add extra cell to compute u and v in the last column)
+
+                    # Now build the pixel matrix
+                    x00 = 0.5 * dxp + bm0 * refi * dyp
+                    x01 = x00 + (bm1 - bm0 + 1) * refi * dxp
+                    y00 = 0.5 * dyp + bn0 * refi * dyp
+                    y01 = y00 + (bn1 - bn0 + 1) * refi * dyp
+
+                    x0v = np.arange(x00, x01, dxp)
+                    y0v = np.arange(y00, y01, dyp)
+                    xg0, yg0 = np.meshgrid(x0v, y0v)
+
+                    # Rotate and translate
+                    xg = x0 + cosrot * xg0 - sinrot * yg0
+                    yg = y0 + sinrot * xg0 + cosrot * yg0
+
+                    # Clear temporary variables
+                    del x0v, y0v, xg0, yg0
+                    
+                    # Initialize depth of subgrid at NaN
+                    zg = np.full(np.shape(xg), np.nan)
+
+                    # Get bathy on refined grid
+                    # Start using HydroMT for this at some point
+                    if bathymetry_database is not None:
+                        # Getting bathymetry array zg from database
+                        try: 
+                            zg = bathymetry_database.get_bathymetry_on_grid(xg, yg,
+                                                                            self.model.crs,
+                                                                            bathymetry_sets)
+                        except Exception as e:
+                            print(e)
+                            pass
+                            return
+
+                    else:
+                        # Getting bathymetry array zg from tif file(s)                      
+                        # Loop through bathymetry datasets
+                        for ibathy, bathymetry in enumerate(bathymetry_sets):
+                            # Check if there are NaNs left in this block 
+                            if np.isnan(zg).any():
+                                try:
+                                    if bathymetry.attrs["type"] == "tif_file":
+                                        xgb, ygb = xg, yg
+                                        # Get DEM data (ddb format for now)
+                                        xb, yb, zb = bathymetry.x, bathymetry.y, bathymetry[0].data
+                                        if zb is not np.nan:
+                                            if not np.isnan(zb).all():
+                                                zg1 = interp2(xb, yb, zb, xgb, ygb)
+                                                isn = np.where(np.isnan(zg))
+                                                zg[isn] = zg1[isn]
+                                    # clear temp variables
+                                    del xb, yb, zb
+                                except Exception as e:
+                                    print(e)
+                                    return
+                    
+                    # Now compute subgrid properties
+                    if not quiet:
+                        print("Computing blocking coefficients ...")
+
+                    # Calculate angles
+                    nvec = int(nr_dirs / 2)
+                    dtheta = 360.0 / nr_dirs    
+                    angles = np.linspace(0.5 * dtheta, 180.0 + 0.5 * dtheta, nvec, endpoint=False) 
+                    radians = np.deg2rad(angles)
+                    vectors = np.array([[np.cos(angle), np.sin(angle), 0] for angle in radians])
+
+                    # Now find available cells in this block
+
+                    # First we loop through all the possible cells in this block
+                    index_cells_in_block = np.zeros(nrcb * nrcb, dtype=int)
+
+                    # Loop through all cells in this level
+                    nr_cells_in_block = 0
+                    for ic in range(nr_cells_in_level):
+                        indx = cell_indices_in_level[ic]  # index of the whole quadtree
+                        if (
+                            n[indx] >= bn0
+                            and n[indx] < bn1
+                            and m[indx] >= bm0
+                            and m[indx] < bm1
+                        ):
+                            # Cell falls inside block
+                            index_cells_in_block[nr_cells_in_block] = indx
+                            nr_cells_in_block += 1
+
+                    if nr_cells_in_block == 0: 
+                        # No cells in this block
+                        continue
+
+                    index_cells_in_block = index_cells_in_block[0:nr_cells_in_block]
+
+                    for index in index_cells_in_block:
 
                         # Get elevation in cells
-                        nn  = (n - bn0) * refi
-                        mm  = (m - bm0) * refi
+                        nn  = (n[index] - bn0) * refi
+                        mm  = (m[index] - bm0) * refi
                         zgc = zg[nn : nn + refi, mm : mm + refi]
     
                         if np.nanmax(zgc) < threshold_level:
@@ -258,11 +327,11 @@ class WaveBlocking:
 
                         for idx in range(nvec):
                             covered_ratio = cell.project_on_plane(vectors[idx])
-                            self.block_coefficient[idx, n, m] = covered_ratio
-                            self.block_coefficient[idx + nvec, n, m] = covered_ratio
+                            self.block_coefficient[idx, index] = covered_ratio
+                            self.block_coefficient[idx + nvec, index] = covered_ratio
                             
                         if showcase:
-                            print("blocking coefficient:\n", self.block_coefficient[:, n, m])                                
+                            print("blocking coefficient:\n", self.block_coefficient[:, index])
                             print("For angles:\n", np.concatenate((angles, angles + 180.0)))
 
         if not quiet:
@@ -276,10 +345,9 @@ class WaveBlocking:
             #additional_variable = self.additional_variable  # Another variable to include
 
             # Define dimensions and coordinates
-            dims = ('directions', 'lat', 'lon')  # Example dimensions
+            dims = ('directions', 'cells')  # Example dimensions
             coords = {
-                'lon': np.arange(0, block_coefficient.shape[2]),
-                'lat': np.arange(0, block_coefficient.shape[1]),
+                'cells': np.arange(0, nr_cells),
                 'directions': np.concatenate((angles, angles + 180.0))
             }
 
@@ -297,6 +365,25 @@ class WaveBlocking:
             # Save the dataset to a NetCDF file
             dataset.to_netcdf(os.path.join(self.model.path, file_name))
             print(f"Dataset saved as '{file_name}")
+
+            # # And now rewrite the file, with dimension nr_points, with flattened data
+            # # lon and lat are also written to the file, but must also be flattened and have nr_points as dimension
+            # dataset = xr.Dataset()
+            # dims = ('nr_points', 'directions')
+            # nr_points = block_coefficient.shape[1] * block_coefficient.shape[2]
+            # coords = {
+            #     'nr_points': np.arange(nr_points),
+            #     'directions': np.concatenate((angles, angles + 180.0))
+            # }
+            # data_array = xr.DataArray(block_coefficient.reshape((nr_points, -1)), dims=dims, coords=coords, name='blocking_coefficient')
+            # dataset['blocking_coefficient'] = data_array
+            # dataset.attrs['title'] = 'Hurrywave wave blocking file'
+            # dataset.attrs['institution'] = 'Deltares'
+            # dataset.attrs['source'] = 'Deltares'
+            # dataset.attrs['history'] = 'Created ' + str(pd.Timestamp.now())
+            # dataset.to_netcdf(os.path.join(self.model.path, file_name.replace('.wbl', '_flat.nc')))
+            # print(f"Dataset saved as '{file_name.replace('.wbl', '_flat.nc')}'")
+
 
         return dataset
 
@@ -440,7 +527,7 @@ class Cell2:
     
     def circle_around_cell(self, cell_width, cell_height):
 
-        '''Function to calculate cricle around a cell based on height and width'''
+        '''Function to calculate circle around a cell based on height and width'''
 
         # Calculate diagonal length of the cell
         diagonal_length = math.sqrt(cell_width**2 + cell_height**2)

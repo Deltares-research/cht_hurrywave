@@ -248,10 +248,10 @@ class HurryWaveBoundaryConditions:
             df.index = dt
             to_fwf(df, file_name)
 
-        write_timeseries("bhsfile", "hs")
-        write_timeseries("btpfile", "tp")
-        write_timeseries("bwdfile", "wd")
-        write_timeseries("bdsfile", "ds")
+        write_timeseries("bhsfile", "bhs")
+        write_timeseries("btpfile", "btp")
+        write_timeseries("bwdfile", "bwd")
+        write_timeseries("bdsfile", "bds")
 
     def write_boundary_conditions_spectra(self, file_name=None):
         """

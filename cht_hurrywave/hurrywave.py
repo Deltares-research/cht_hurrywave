@@ -17,6 +17,7 @@ from pyproj import Transformer
 from .input import HurryWaveInput
 # Bathymetry and mask are now part of HurryWaveGrid class
 from .grid import HurryWaveGrid
+from .mask import HurryWaveMask
 from .waveblocking import WaveBlocking
 from .boundary_conditions import HurryWaveBoundaryConditions
 from .observation_points import HurryWaveObservationPointsRegular
@@ -89,6 +90,7 @@ class HurryWave:
             self.crs = CRS(self.input.variables.crs_name)
 
         self.grid                       = HurryWaveGrid(self)
+        self.mask                       = HurryWaveMask(self)
         self.boundary_conditions        = HurryWaveBoundaryConditions(self)
         self.observation_points_regular = HurryWaveObservationPointsRegular(self)
         self.observation_points_sp2     = HurryWaveObservationPointsSpectra(self)
@@ -102,6 +104,7 @@ class HurryWave:
     def clear_spatial_attributes(self):
         # Clear all spatial data
         self.grid                       = HurryWaveGrid(self)
+        self.mask                       = HurryWaveMask(self)
         self.boundary_conditions        = HurryWaveBoundaryConditions(self)
         self.observation_points_regular = HurryWaveObservationPointsRegular(self)
         self.observation_points_sp2     = HurryWaveObservationPointsSpectra(self)
@@ -121,6 +124,7 @@ class HurryWave:
 
     def read_attribute_files(self, read_grid_data=True):
         if read_grid_data:
+            # This also read the mask data
             self.grid.read()
         self.boundary_conditions.read()
         self.observation_points_regular.read()
@@ -132,12 +136,14 @@ class HurryWave:
         
     def write_attribute_files(self):
         self.grid.write()
+        # This also writes the mask data
         self.boundary_conditions.write()
         self.observation_points_regular.write()
         self.observation_points_sp2.write()
 
     def write_batch_file(self):
         fid = open(os.path.join(self.path, "run.bat"), "w")
+        fid.write("set HDF5_USE_FILE_LOCKING=FALSE\n")
         fid.write(self.exe_path + "\\" + "hurrywave.exe")
         fid.close()
 
