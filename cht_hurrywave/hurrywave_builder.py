@@ -10,10 +10,53 @@ import geopandas as gpd
 
 from cht_model_builder.model_builder import ModelBuilder
 from cht_hurrywave.hurrywave import HurryWave
-from cht_hurrywave.waveblocking import WaveBlockingFile
+from cht_hurrywave.waveblocking import WaveBlocking
 import cht_utils.fileops as fo
 
 class HurryWaveBuilder(ModelBuilder):
+
+    """
+    A class for building and configuring the HurryWave model. This class inherits from 
+    ModelBuilder and provides additional functionality to set up and build the HurryWave model 
+    with specified configurations, including grid, mask, bathymetry, and wave-blocking files.
+
+    The class provides functionality to:
+
+    - Initialize model configurations and set up the spatial reference system (CRS).
+    - Build and configure the model's grid, including setting up mask and bathymetry files.
+    - Optionally create a wave-blocking file for simulating wave interactions.
+    - Generate tile indices for specified zoom levels and depth ranges.
+    - Read and manage input files and configuration settings for the HurryWave model.
+
+    Key Methods:
+
+    - __init__: 
+        Initializes the HurryWaveBuilder object, inheriting from ModelBuilder.
+    - build: 
+        Main method to build the HurryWave model with optional steps to create a mask, bathymetry, wave-blocking file, and tiles.
+    - crs: 
+        Configures the coordinate reference system (CRS) for the model.
+    - mask setup: 
+        Creates the mask based on input polygons and specified depth ranges.
+    - grid setup: 
+        Builds the model's grid and bathymetry configuration.
+    - wave-blocking setup: 
+        Creates a wave-blocking file if required.
+    - tiles: 
+        Generates index tiles for the model grid and bathymetry dataset.
+
+    Arguments:
+    -----------
+
+    - mskfile: Name of the mask file.
+    - depfile: Name of the bathymetry file.
+    - make_mask: Boolean to create the mask (default True).
+    - get_bathymetry: Boolean to include bathymetry setup (default True).
+    - make_waveblockingfile: Boolean to generate a wave-blocking file (default False).
+    - make_tiles: Boolean to create index tiles (default True).
+    - quiet: Boolean to suppress output messages (default False).
+    """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     

@@ -11,6 +11,36 @@ import numpy as np
 from matplotlib import path
 
 class HurryWaveObservationPointsRegular:
+
+    """
+    A class to manage observation points for the HurryWave model, specifically for regular observation points.
+    This class provides methods to read, write, add, delete, and list observation points, as well as clearing
+    or updating the list of points.
+
+    Key Methods:
+
+    - __init__:
+        Initializes the observation points container (GeoDataFrame).
+    - read: 
+        Reads observation points from a specified file and stores them as geometry points in a GeoDataFrame.
+    - write:
+        Writes the stored observation points to a specified file in a specific format (based on the model's CRS).
+    - add_point:
+         Adds a new observation point to the list.
+    - delete_point:
+         Deletes an observation point based on name or index.
+    - clear:
+         Clears all observation points.
+    - list_observation_points:
+         Lists the names of all current observation points.
+    - add_points: 
+        Adds multiple points to the observation list, checking if they are within the grid outline.
+
+    Arguments:
+
+    - hw: The HurryWave model object to which the observation points belong.
+
+    """
     def __init__(self, hw):
         self.model = hw
         self.gdf  = gpd.GeoDataFrame()
@@ -114,6 +144,33 @@ class HurryWaveObservationPointsRegular:
         self.gdf = pd.concat([self.gdf, gdf_new], ignore_index=True)
 
 class HurryWaveObservationPointsSpectra:
+
+    """
+    A class to manage observation points for the HurryWave model, specifically for spectra-based observation points.
+    This class provides methods to read, write, add, delete, and list observation points, as well as clearing
+    or updating the list of points.
+
+    Key Methods:
+
+    - __init__: 
+        Initializes the observation points container (GeoDataFrame).
+    - read:
+         Reads observation points from a specified file and stores them as geometry points in a GeoDataFrame.
+    - write:
+         Writes the stored observation points to a specified file in a specific format (based on the model's CRS).
+    - add_point:
+         Adds a new observation point to the list.
+    - delete_point:
+         Deletes an observation point based on name or index.
+    - clear:
+         Clears all observation points.
+    - list_observation_points: 
+        Lists the names of all current observation points.
+
+    Arguments:
+
+    - hw: The HurryWave model object to which the observation points belong.
+    """
     def __init__(self, hw):
         self.model = hw
         self.gdf  = gpd.GeoDataFrame()
