@@ -33,20 +33,23 @@ class HurryWaveGrid:
             dy = self.model.input.variables.dy
             rotation = self.model.input.variables.rotation
             crs = self.model.crs
-            self.data = QuadtreeGrid()
+            self.data = QuadtreeMesh()
             # Build the grid
             self.data.build(
                 x0, y0, nmax, mmax, dx, dy, rotation, crs,
             )
             # Read mask file
             if self.model.input.variables.mskfile:
-               self.data.xuds["mask"].values[:] = read_map("mask", os.path.join(self.model.path, self.model.input.variables.mskfile), np.int8, 0)
+               self.model.mask.initialize() # initialize with zeros
+               self.data.xuds["mask"].values[:] = np.fromfile(os.path.join(self.model.path, self.model.input.variables.mskfile), dtype=np.int8)
             # And the depth file
             if self.model.input.variables.depfile:
-                self.data.xuds["bed_level"].values[:] = read_map("bed_level",
-                                                                      os.path.join(self.model.path, self.model.input.variables.depfile),
-                                                                      np.float32,
-                                                                      0.0)
+               self.data.xuds["z"].values[:] = np.fromfile(os.path.join(self.model.path, self.model.input.variables.depfile), dtype=np.float32)
+
+            self.data.get_exterior()
+            
+            # self.write()  # Write the grid to a netCDF (quadtree) file
+
         else:
             # netCDF quadtree file (already includes mask and depth)
             file_name = os.path.join(self.model.path, self.model.input.variables.qtrfile)
@@ -115,9 +118,16 @@ class HurryWaveGrid:
                                      width=width)
         return okay
 
+    def exterior(self):
+        """Get the exterior of the grid as a GeoDataFrame."""
+        gdf = self.data.exterior()
+        gdf["name"] = self.model.name
+        return gdf
+
 def read_map(self, name, file_name, dtype, fill_value):
     """Read one of the grid variables of the HurryWave model map from a binary file."""
     data = np.fromfile(file_name, dtype=dtype)
+    return data
     # data = np.reshape(data, (self.mmax, self.nmax)).transpose()
     da = xr.DataArray(
         name=name,
