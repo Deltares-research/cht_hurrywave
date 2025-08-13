@@ -312,10 +312,10 @@ class HurryWaveBoundaryConditions:
         
         # Default min_dist to twice the grid spacing if not provided
         if min_dist is None:
-            min_dist = self.model.grid.dx * 2
+            min_dist = self.model.grid.data.dx * 2
 
         # Extract mask data and identify boundary points (where mask == 2)
-        da_mask = self.model.grid.ds["mask"]
+        da_mask = self.model.mask.data.xuds["mask"]
         ibnd = np.where(da_mask.values == 2)  # Boundary indices
         xp, yp = da_mask["x"].values[ibnd], da_mask["y"].values[ibnd]  # Boundary coordinates
 

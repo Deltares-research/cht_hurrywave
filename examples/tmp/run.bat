@@ -1,1 +1,1 @@
-c:\executables\hurrywave_rotationfix\hurrywave.exe
+c:\git\HurryWave\source\hurrywave\x64\Release\hurrywave.exe
