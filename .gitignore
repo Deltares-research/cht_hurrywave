@@ -8,4 +8,15 @@ launch.json
 _build
 dist
 cht_hurrywave.egg-info
-examples/
+examples/tmp
+examples/DanielTest/01_data
+examples/DanielTest/02_scripts/Backup
+examples/DanielTest/02_scripts/Backup_OLD
+examples/DanielTest/02_scripts/logs
+examples/DanielTest/02_scripts/__pycache__
+
+
+examples/DanielTest/03_modelsetup
+examples/DanielTest/04_modelruns
+examples/DanielTest/05_postprocessing
+examples/DanielTest/06_executables
