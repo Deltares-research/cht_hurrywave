@@ -36,8 +36,6 @@ if not os.path.exists(main_path):
 
 name = 'sensitivity_december2023_TEMPLATE'
 
-year = 2023
-
 model_setup = os.path.join(main_path, '04_modelruns',name)
 
 data_path = '/gpfs/work3/0/ai4nbs/ERA5_data'
@@ -154,7 +152,7 @@ def change_space_resolution_y(new_dy, specs, const_length_y=const_length_y):
     specs['dy'] = new_dy
     specs['nmax'] = new_nmax
 
-def change_start_time(year):
+def change_start_time():
     """
     Change the start time, stop time, and reference time in specs based on the year in 'name'.
     Sets tstop to YYYY1231 235900 and tstart/tref to (YYYY0101 000000 - tspinup).
@@ -168,7 +166,7 @@ def change_start_time(year):
     specs['tref'] = tstart_str
     
 
-def update_input(hw,year,specs, const_length_x=const_length_x, const_length_y=const_length_y):
+def update_input(hw,specs, const_length_x=const_length_x, const_length_y=const_length_y):
     """
     Update the input file of the model with the new parameters.
     :param hw: HurryWave object
@@ -176,12 +174,12 @@ def update_input(hw,year,specs, const_length_x=const_length_x, const_length_y=co
     """
     change_space_resolution_x(specs['dx'], specs, const_length_x)
     change_space_resolution_y(specs['dy'], specs, const_length_y)
-    change_start_time(year)
+    change_start_time()
     # Update the input file with the new parameters
     hw.input.update(specs)
     hw.input.write()
 
-update_input(hw, year,specs,const_length_x=const_length_x, const_length_y=const_length_y)
+update_input(hw,specs,const_length_x=const_length_x, const_length_y=const_length_y)
 
 # # Cut down ERA5 data to the geography and period of interest
 year_start = specs['tstart'][:4]
