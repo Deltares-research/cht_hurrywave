@@ -252,8 +252,14 @@ class HurryWave:
                 it0 = it
             if time<=time_range[1]:
                 it1 = it
+
         
-        zs_da = np.amax(dsin[parameter].values[it0:it1,:,:], axis=0)
+        if "mesh2d_face_nodes" in dsin:
+            # Quadtree grid
+            zs_da = np.amax(dsin[parameter].values[it0:it1,:], axis=0)
+        else:
+            # Regular grid        
+            zs_da = np.amax(dsin[parameter].values[it0:it1,:,:], axis=0)
         dsin.close()
         
         return zs_da
@@ -323,8 +329,13 @@ class HurryWave:
                     it0 = it
                 if time<=time_range[1]:
                     it1 = it            
-            
-            zs_da = np.amax(dsin[parameter].values[it0:it1,:,:], axis=0)
+        
+            if "mesh2d_face_nodes" in dsin:
+                # Quadtree grid
+                zs_da = np.amax(dsin[parameter].values[it0:it1,:], axis=0)
+            else:
+                # Regular grid
+                zs_da = np.amax(dsin[parameter].values[it0:it1,:,:], axis=0)
             dsin.close()
             
         else:
