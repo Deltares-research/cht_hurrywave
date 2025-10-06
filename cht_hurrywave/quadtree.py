@@ -234,7 +234,15 @@ class QuadtreeMesh:
             mmax = self.mmax * 2**ilev
             # Add buffer of 0.5*dx around polygon
             polbuf = polygon["geometry"]
-            # Rotate polbuf to grid (this is needed to find cells that could fall within polbuf)
+
+            # Now get the exterior coords of polbuf
+            if polbuf.geom_type == "MultiPolygon":
+                # Get the exterior coords of all polygons in the MultiPolygon
+                all_coords = []
+                for poly in polbuf.geoms:
+                    all_coords.extend(list(poly.exterior.coords))
+                polbuf = Polygon(all_coords)
+
             coords = polbuf.exterior.coords[:]
             npoints = len(coords)
             polx = np.zeros(npoints)
