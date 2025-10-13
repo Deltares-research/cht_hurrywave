@@ -1031,7 +1031,6 @@ class QuadtreeMesh:
         for mask_name in mask_list:
             self.xuds[mask_name] = xu.UgridDataArray(xr.DataArray(data=mask_arrays[mask_name], dims=[self.xuds.grid.face_dimension]), self.xuds.grid)
 
-
     def interpolate_bathymetry(self, x, y, z, method="linear"):
         """x, y, and z are numpy arrays with coordinates and bathymetry values"""
         xy = self.data.grid.face_coordinates
@@ -1110,6 +1109,190 @@ class QuadtreeMesh:
             zz[cell_indices_in_level] = zgl
 
         self.xuds["z"] = xu.UgridDataArray(xr.DataArray(data=zz, dims=[self.xuds.grid.face_dimension]), self.xuds.grid)
+
+    def set_bathymetry_mean_wet(self,
+              bathymetry_sets,
+              bathymetry_database=None,
+              nr_subgrid_pixels=20,
+              threshold_level=0.0,
+              quiet=True,
+              progress_bar=None):  
+       
+        refi        = nr_subgrid_pixels
+        nrmax       = 2000
+
+        # Get some information from the grid
+        nr_cells    = self.nr_cells
+        nr_ref_levs = self.nr_refinement_levels
+        x0          = self.xuds.attrs["x0"]
+        y0          = self.xuds.attrs["y0"]
+        dx          = self.xuds.attrs["dx"]
+        dy          = self.xuds.attrs["dy"]
+        rot         = self.xuds.attrs["rotation"]
+        cosrot      = np.cos(np.radians(rot))
+        sinrot      = np.sin(np.radians(rot))
+        level       = self.xuds["level"].values[:] - 1
+        n           = self.xuds["n"].values[:] - 1
+        m           = self.xuds["m"].values[:] - 1
+
+        counter = 0
+
+        # Determine first indices and number of cells per refinement level
+        ifirst = np.zeros(nr_ref_levs, dtype=int)
+        ilast = np.zeros(nr_ref_levs, dtype=int)
+        nr_cells_per_level = np.zeros(nr_ref_levs, dtype=int)
+        ireflast = -1
+        for ic in range(nr_cells):
+            if level[ic] > ireflast:
+                ifirst[level[ic]] = ic
+                ireflast = level[ic]
+        for ilev in range(nr_ref_levs - 1):
+            ilast[ilev] = ifirst[ilev + 1] - 1
+        ilast[nr_ref_levs - 1] = nr_cells - 1
+        for ilev in range(nr_ref_levs):
+            nr_cells_per_level[ilev] = ilast[ilev] - ifirst[ilev] + 1
+
+        # Loop through all levels
+        for ilev in range(nr_ref_levs):
+
+            # Make blocks off cells in this level only
+            cell_indices_in_level = np.arange(ifirst[ilev], ilast[ilev] + 1, dtype=int)
+            nr_cells_in_level = np.size(cell_indices_in_level)
+
+            if nr_cells_in_level == 0:
+                continue
+
+            n0 = np.min(n[ifirst[ilev] : ilast[ilev] + 1])
+            n1 = np.max(
+                n[ifirst[ilev] : ilast[ilev] + 1]
+            )  # + 1 # add extra cell to compute u and v in the last row/column
+            m0 = np.min(m[ifirst[ilev] : ilast[ilev] + 1])
+            m1 = np.max(
+                m[ifirst[ilev] : ilast[ilev] + 1]
+            )  # + 1 # add extra cell to compute u and v in the last row/column
+
+            dxi = dx / 2**ilev  # cell size at this level
+            dyi = dy / 2**ilev  # cell size at this level
+            dxp = dxi / refi    # size of subgrid pixel
+            dyp = dyi / refi    # size of subgrid pixel
+
+            nrcb = int(np.floor(nrmax / refi))         # nr of regular cells in a block
+            nrbn = int(np.ceil((n1 - n0 + 1) / nrcb))  # nr of blocks in n direction
+            nrbm = int(np.ceil((m1 - m0 + 1) / nrcb))  # nr of blocks in m direction
+
+            if progress_bar:
+                progress_bar.set_text("               Computing bathymetry ...                ")
+                progress_bar.set_minimum(0)
+                progress_bar.set_maximum(nrbm * nrbn)
+                progress_bar.set_value(0)
+                                
+            ## Loop through blocks
+            ib = 0
+            for ii in range(nrbm):
+                for jj in range(nrbn):
+
+                    if progress_bar:
+                        # perc_ready = int(100*ib/(nrbn*nrbm))
+                        progress_bar.set_value(ib)
+                        if progress_bar.was_canceled():
+                            return False
+
+                    ib += 1
+
+                    if not quiet:
+                        print("--------------------------------------------------------------")
+                        print("Processing block " + str(ib) + " of " + str(nrbn*nrbm) + " ...")
+                        print("Getting bathymetry data ...")
+
+                    bn0 = n0  + jj*nrcb               # Index of first n in block
+                    bn1 = min(bn0 + nrcb - 1, n1) + 1 # Index of last n in block (cut off excess above, but add extra cell to compute u and v in the last row)
+                    bm0 = m0  + ii*nrcb               # Index of first m in block
+                    bm1 = min(bm0 + nrcb - 1, m1) + 1 # Index of last m in block (cut off excess to the right, but add extra cell to compute u and v in the last column)
+
+                    # Now build the pixel matrix
+                    x00 = 0.5 * dxp + bm0 * refi * dyp
+                    x01 = x00 + (bm1 - bm0 + 1) * refi * dxp
+                    y00 = 0.5 * dyp + bn0 * refi * dyp
+                    y01 = y00 + (bn1 - bn0 + 1) * refi * dyp
+
+                    x0v = np.arange(x00, x01, dxp)
+                    y0v = np.arange(y00, y01, dyp)
+                    xg0, yg0 = np.meshgrid(x0v, y0v)
+
+                    # Rotate and translate
+                    xg = x0 + cosrot * xg0 - sinrot * yg0
+                    yg = y0 + sinrot * xg0 + cosrot * yg0
+
+                    # Clear temporary variables
+                    del x0v, y0v, xg0, yg0
+                    
+                    # Initialize depth of subgrid at NaN
+                    zg = np.full(np.shape(xg), np.nan)
+
+                    # Get bathy on refined grid
+                    # Start using HydroMT for this at some point
+                    if bathymetry_database is not None:
+                        # Getting bathymetry array zg from database
+                        try: 
+                            zg = bathymetry_database.get_bathymetry_on_grid(xg, yg,
+                                                                            self.crs,
+                                                                            bathymetry_sets)
+                        except Exception as e:
+                            print(e)
+                            pass
+                            return
+
+                    if not quiet:
+                        print("Processing cells ...")
+
+                    # Now find available cells in this block
+
+                    # First we loop through all the possible cells in this block
+                    index_cells_in_block = np.zeros(nrcb * nrcb, dtype=int)
+
+                    # Loop through all cells in this level
+                    nr_cells_in_block = 0
+                    for ic in range(nr_cells_in_level):
+                        indx = cell_indices_in_level[ic]  # index of the whole quadtree
+                        if (
+                            n[indx] >= bn0
+                            and n[indx] < bn1
+                            and m[indx] >= bm0
+                            and m[indx] < bm1
+                        ):
+                            # Cell falls inside block
+                            index_cells_in_block[nr_cells_in_block] = indx
+                            nr_cells_in_block += 1
+
+                    if nr_cells_in_block == 0: 
+                        # No cells in this block
+                        continue
+
+                    index_cells_in_block = index_cells_in_block[0:nr_cells_in_block]
+
+                    # Should really parallelize this loop !
+
+                    for index in index_cells_in_block:
+
+                        # Get elevation in cells
+                        nn  = (n[index] - bn0) * refi
+                        mm  = (m[index] - bm0) * refi
+                        zgc = zg[nn : nn + refi, mm : mm + refi]
+    
+                        if np.nanmax(zgc) < threshold_level:
+                            # Check if any cells above threshold for island
+                            continue
+                        counter += 1
+
+                        # Compute the mean depth of wet pixels
+                        indwet = np.where(zgc <= threshold_level)                        
+                        if len(indwet[0]) > 0:
+                            zbmean = np.nanmean(zgc[indwet])
+                        else:
+                            zbmean = np.nanmean(zgc)
+
+                        # Set bed level in grid
+                        self.xuds["z"].values[index] = zbmean
 
     def snap_to_grid(self, polyline):
         if len(polyline) == 0:
@@ -1511,6 +1694,11 @@ class QuadtreeMask:
 
         # Set all to zero
         self.xuds[mask_name] = xr.DataArray(data=np.zeros(nr_cells, dtype=np.int8), dims=["mesh2d_nFaces"])
+
+    def set_to_zero(self):
+        """Set all mask values to zero"""
+        nr_cells = self.xuds.sizes["mesh2d_nFaces"]
+        self.xuds[self.mask_name] = xr.DataArray(data=np.zeros(nr_cells, dtype=np.int8), dims=["mesh2d_nFaces"])
 
     def set_global(self, zmin, zmax, mask_value):
 

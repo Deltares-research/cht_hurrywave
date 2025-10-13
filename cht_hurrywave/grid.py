@@ -110,6 +110,21 @@ class HurryWaveGrid:
         """Set bathymetry for the quadtree grid object."""
         self.data.set_bathymetry(bathymetry_list, bathymetry_database=bathymetry_database)
 
+    def set_bathymetry_mean_wet(self,
+              bathymetry_sets,
+              bathymetry_database=None,
+              nr_subgrid_pixels=20,
+              threshold_level=0.0,
+              quiet=True,
+              progress_bar=None):  
+
+        self.data.set_bathymetry_mean_wet(bathymetry_sets,
+                                          bathymetry_database=bathymetry_database,
+                                          nr_subgrid_pixels=nr_subgrid_pixels,
+                                          threshold_level=threshold_level,
+                                          quiet=quiet,
+                                          progress_bar=progress_bar)
+
     def map_overlay(self, file_name, xlim=None, ylim=None, color="black", width=800):
         okay = self.data.map_overlay(file_name,
                                      xlim=xlim,

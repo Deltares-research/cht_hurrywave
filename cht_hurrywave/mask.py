@@ -42,6 +42,9 @@ class HurryWaveMask:
         if not quiet:
             print("Building mask ...")
 
+        # First clear the mask (set to zero)
+        self.data.set_to_zero()   
+
         # Set global based on zmin and zmax  
         self.data.set_global(zmin, zmax, 1)    
                         
