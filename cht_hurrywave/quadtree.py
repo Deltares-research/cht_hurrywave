@@ -1279,9 +1279,10 @@ class QuadtreeMesh:
                         mm  = (m[index] - bm0) * refi
                         zgc = zg[nn : nn + refi, mm : mm + refi]
     
-                        if np.nanmax(zgc) < threshold_level:
-                            # Check if any cells above threshold for island
-                            continue
+                        # if np.nanmax(zgc) < threshold_level:
+                        #     # Check if any cells above threshold for island
+                        #     continue
+
                         counter += 1
 
                         # Compute the mean depth of wet pixels
