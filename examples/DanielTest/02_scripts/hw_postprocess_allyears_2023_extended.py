@@ -23,6 +23,7 @@ import pymannkendall as mk
 import calendar
 from sklearn.linear_model import LinearRegression
 import re
+import gc
 
 base_path = "/gpfs/work3/0/ai4nbs/hurry_wave/north_sea"
 output_dir = os.path.join(base_path, "04_modelruns" , "Test_larger_domain", "1_postprocess")
@@ -41,7 +42,7 @@ year_start = 2023 # Latest year
 year_end = 2023 # Earliest year
 
 month_start = 12 # Latest month
-month_end = 12 # Earliest month
+month_end = 1 # Earliest month
 
 day_start = 31 # Latest day
 day_end = 1 # Earliest day
@@ -59,9 +60,13 @@ run_tests = False
 area = [80, -25, 45, 10] # DCSM area in the North Sea (degrees): North, West, South, East
 
 # model_path = os.path.join(base_path, '04_modelruns', 'YearSims',model_name)
- 
+
 model_path = os.path.join(base_path, '04_modelruns', 'Test_larger_domain')
+small_model_path = os.path.join(base_path, '04_modelruns', 'YearSims', '2023')
 model_path_start = os.path.join(model_path) 
+
+
+
 postprocess_path = os.path.join(base_path, '05_postprocessing', 'his_files_per_station')
 spectral_data_path = os.path.join(base_path, '01_data', 'spectral_buoy_data')
 ERA5_data_path = '/gpfs/work3/0/ai4nbs/ERA5_data/NorthSea_waves'
@@ -240,9 +245,13 @@ data_per_station, station_names = process_station_data(
     save=False
 )
 
-
-
-# In[8]:
+small_data_per_station, small_station_names = process_station_data(
+    model_base_path=small_model_path,
+    outdir=postprocess_path,
+    y0=year_end,
+    y1=year_start,
+    save=False
+)
 
 
 # Map station IDs to station names using the station_names list
@@ -255,6 +264,22 @@ else:
     for sid, sname in zip(station_ids, station_names):
         data_per_station_named[sname] = data_per_station[sid]
     data_per_station = data_per_station_named
+
+# Map station IDs to station names using the station_names list
+small_station_ids = list(small_data_per_station.keys())
+if len(small_station_ids) != len(small_station_names):
+    raise ValueError(f"Number of station IDs ({len(small_station_ids)}) and station names ({len(small_station_names)}) do not match.")
+
+else:
+    small_data_per_station_named = {}
+    for sid, sname in zip(small_station_ids, small_station_names):
+        small_data_per_station_named[sname] = small_data_per_station[sid]
+    small_data_per_station = small_data_per_station_named
+
+# In[8]:
+
+
+
 
 # Create a dictionary mapping station names to their depth value
 depths = {station: float(data_per_station[station]['point_depth'][0]) for station in station_names}
@@ -324,6 +349,19 @@ for station in station_names:
         print(f"Warning: No data arrays returned for station {station}.")
 
 
+# Apply to each station and all model variables (except time/station_x/station_y)
+for station in station_names:
+    time = small_data_per_station[station]['time']
+    data_arrays = [small_data_per_station[station][var] for var in model_var_names if var in small_data_per_station[station]]
+    small_filtered_results = remove_concatenation_outliers(time, *data_arrays)
+    if len(small_filtered_results) == len(data_arrays) + 1:
+        small_filtered_time = small_filtered_results[0]
+        small_filtered_data_arrays = small_filtered_results[1:]
+        small_data_per_station[station]['time'] = small_filtered_time
+        for var, arr in zip(model_var_names, small_filtered_data_arrays):
+            small_data_per_station[station][var] = arr
+    else:
+        print(f"Warning: No data arrays returned for station {station}.")
 # ## ERA 5 extraction
 
 # In[13]:
@@ -653,6 +691,7 @@ def synchronize_station_keys(model_dict, meas_dict):
 
 data_per_station, obs_data_per_station = synchronize_station_keys(data_per_station, obs_data_per_station)
 
+small_data_per_station, obs_data_per_station = synchronize_station_keys(small_data_per_station, obs_data_per_station)
 # In[26]:
 
 
@@ -900,6 +939,7 @@ def convert_model_datetime(df_model):
     return df_model
 
 data_per_station = convert_model_datetime(data_per_station)
+small_data_per_station = convert_model_datetime(small_data_per_station)
 
 
 # In[33]:
@@ -954,16 +994,73 @@ def filter_data_by_datetime_range(
         return data.loc[mask].copy()
     else:
         raise ValueError("Input data must be a dict with a time array or a DataFrame with a time column.")
+    
+
+def align_data_on_time(data_dict1, data_dict2):
+    """
+    Align two dictionaries of station data on the 'time' key.
+    Ensures that all stations in both dictionaries have the same time range and shape.
+
+    Args:
+        data_dict1 (dict): First dictionary of station data.
+        data_dict2 (dict): Second dictionary of station data.
+
+    Returns:
+        dict, dict: Aligned versions of data_dict1 and data_dict2.
+    """
+    aligned_data1 = {}
+    aligned_data2 = {}
+
+    for station in data_dict1.keys():
+        if station in data_dict2:
+            time1 = data_dict1[station]['time']
+            time2 = data_dict2[station]['time']
+
+            # Find the common time range
+            common_time = np.intersect1d(time1, time2)
+
+            # Filter data_dict1
+            mask1 = np.isin(time1, common_time)
+            aligned_data1[station] = {key: (val[mask1] if hasattr(val, '__len__') and len(val) == len(time1) else val)
+                                      for key, val in data_dict1[station].items()}
+
+            # Filter data_dict2
+            mask2 = np.isin(time2, common_time)
+            aligned_data2[station] = {key: (val[mask2] if hasattr(val, '__len__') and len(val) == len(time2) else val)
+                                      for key, val in data_dict2[station].items()}
+
+            # Ensure all variables have the same shape
+            for key in aligned_data1[station]:
+                if key in aligned_data2[station]:
+                    len1 = len(aligned_data1[station][key]) if hasattr(aligned_data1[station][key], '__len__') else None
+                    len2 = len(aligned_data2[station][key]) if hasattr(aligned_data2[station][key], '__len__') else None
+                    if len1 != len2:
+                        raise ValueError(f"Shape mismatch for station '{station}', key '{key}': {len1} != {len2}")
+
+    return aligned_data1, aligned_data2
+
+# Align data_per_station and small_data_per_station
+data_per_station_aligned, small_data_per_station_aligned = align_data_on_time(data_per_station, small_data_per_station)
+
+# Update the original dictionaries
+data_per_station.clear()
+data_per_station.update(data_per_station_aligned)
+
+small_data_per_station.clear()
+small_data_per_station.update(small_data_per_station_aligned)
 
 # Initialize the filtered dictionary before the loop
 data_per_station_filtered = {}
+small_data_per_station_filtered = {}
 obs_data_per_station_filtered = {}
 for station in data_per_station.keys():
     data_per_station_filtered_key = filter_data_by_datetime_range(data_per_station[station], hours[-1], days[-1], months[-1], years[-1], hours[0], days[0], months[0], years[0])
+    small_data_per_station_filtered_key = filter_data_by_datetime_range(small_data_per_station[station], hours[-1], days[-1], months[-1], years[-1], hours[0], days[0], months[0], years[0])
     obs_data_per_station_filtered_key = filter_data_by_datetime_range(obs_data_per_station[station], hours[-1], days[-1], months[-1], years[-1], hours[0], days[0], months[0], years[0])
 
 
     data_per_station_filtered[station] = data_per_station_filtered_key
+    small_data_per_station_filtered[station] = small_data_per_station_filtered_key
     obs_data_per_station_filtered[station] = obs_data_per_station_filtered_key
 
 
@@ -972,6 +1069,9 @@ for station in data_per_station.keys():
 
 data_per_station = data_per_station_filtered
 del data_per_station_filtered
+
+small_data_per_station = small_data_per_station_filtered
+del small_data_per_station_filtered
 
 obs_data_per_station = obs_data_per_station_filtered
 del obs_data_per_station_filtered
@@ -982,8 +1082,8 @@ del obs_data_per_station_filtered
 
 
 
-
 # In[36]:
+
 
 
 def common_times(arr1, arr2):
@@ -1046,7 +1146,7 @@ def find_unique_common_time_indexes(df_model, df_measurements, df_era5):
     return common_indexes_dict
 
 common_indexes_dict = find_unique_common_time_indexes(data_per_station, obs_data_per_station, ERA5_data_per_station)
-
+small_common_indexes_dict = find_unique_common_time_indexes(small_data_per_station, obs_data_per_station, ERA5_data_per_station)
 
 # In[41]:
 
@@ -1265,6 +1365,9 @@ def filter_both_by_common_indexes_ERA5(df_model, df_era5, common_indexes_dict):
 data_per_station_filtered, obs_data_per_station_filtered = filter_both_by_common_indexes(data_per_station, obs_data_per_station, common_indexes_dict)
 data_per_station_filtered, ERA5_data_per_station_filtered = filter_both_by_common_indexes_ERA5(data_per_station, ERA5_data_per_station, common_indexes_dict)
 
+small_data_per_station_filtered, obs_data_per_station_filtered = filter_both_by_common_indexes(small_data_per_station, obs_data_per_station, small_common_indexes_dict)
+small_data_per_station_filtered, ERA5_data_per_station_filtered = filter_both_by_common_indexes_ERA5(small_data_per_station, ERA5_data_per_station, small_common_indexes_dict)
+
 
 for station in station_names:
     model_shape = None
@@ -1288,19 +1391,23 @@ for station in station_names:
 
 
 data_per_station.clear()
+small_data_per_station.clear()
 obs_data_per_station.clear()
 ERA5_data_per_station.clear()
 
 data_per_station.update(data_per_station_filtered)
+small_data_per_station.update(small_data_per_station_filtered)
 obs_data_per_station.update(obs_data_per_station_filtered)
 ERA5_data_per_station.update(ERA5_data_per_station_filtered)
+
+
 
 
 
 # In[75]:
 
 
-def remove_height_outliers(dict_used,  outdir, other_dict1, other_dict2, plot=False, station_for_plot=None, A=0.12, data_type="model"):
+def remove_height_outliers(dict_used,  outdir, other_dict1, other_dict2, other_dict3, plot=False, station_for_plot=None, A=0.12, data_type="model"):
     """
     Remove outliers for Hm0 based on Miche-type breaking limit (height threshold).
     The threshold is applied only where BOTH Hm0 and Tp are non-NaN.
@@ -1371,6 +1478,9 @@ def remove_height_outliers(dict_used,  outdir, other_dict1, other_dict2, plot=Fa
             other_dict1[station] = apply_mask(other_dict1[station], mask)
         if station in other_dict2:
             other_dict2[station] = apply_mask(other_dict2[station], mask)
+
+        if station in other_dict3:
+            other_dict3[station] = apply_mask(other_dict3[station], mask)
 
         # --- Optional plotting ---
         if plot and (station_for_plot is None or station == station_for_plot):
@@ -1445,7 +1555,8 @@ for station in station_names:
     print(f"{station:30s}: {n}")
 
 # --- Apply steepness-based filtering for Hm0 & Tp ---
-remove_height_outliers(obs_data_per_station, output_dir, other_dict1=ERA5_data_per_station, other_dict2=data_per_station, plot=True)
+remove_height_outliers(obs_data_per_station, output_dir, other_dict1=ERA5_data_per_station, other_dict2=data_per_station, other_dict3=small_data_per_station, plot=True)
+
 
 # Print number of observation records per station (before Goda outlier removal)
 def obs_length(d):
@@ -1502,7 +1613,7 @@ def plot_timeseries(data,station_names,variable_list,save_path,data_type):
     for station in station_names:
         for var in variable_list:
             if var in data[station]:
-                plt.figure(figsize=(14, 4))
+                plt.figure(figsize=(10, 8))
 
                 if data_type == "model":
                     plt.plot(data[station]['time'], data[station][var], label=var,color = 'blue')
@@ -1606,7 +1717,7 @@ def plot_hs_polar(data, station_names, save_path, data_type):
     """
     import matplotlib.pyplot as plt
 
-    freq_ticks = np.array([0.05, 0.1, 0.2, 0.3, 0.4])
+    freq_ticks = np.array([0.04, 0.1, 0.2, 0.3, 0.4])
     log_freq_ticks = np.log10(freq_ticks)
     rmin = log_freq_ticks[0]
     rmax = log_freq_ticks[-1]
@@ -1659,8 +1770,8 @@ def plot_hs_polar(data, station_names, save_path, data_type):
         if directions.size == 0 or frequencies.size == 0 or heights.size == 0:
             print(f"Warning: directions, frequencies, or heights are empty for {station}, skipping.")
             continue
-        
-        mask = (~np.isnan(directions)) & (~np.isnan(frequencies)) & (~np.isnan(heights)) & (frequencies >= 0.05) & (frequencies <= 0.4)
+
+        mask = (~np.isnan(directions)) & (~np.isnan(frequencies)) & (~np.isnan(heights)) & (frequencies >= 0.04) & (frequencies <= 0.4)
         if not np.any(mask):
             print(f"No valid data for {station}, skipping.")
             continue
@@ -1676,7 +1787,7 @@ def plot_hs_polar(data, station_names, save_path, data_type):
         r = np.log10(frequencies[mask])
         c = heights[mask]
 
-        fig = plt.figure(figsize=(7, 7))
+        fig = plt.figure(figsize=(10, 10))
         ax = fig.add_subplot(111, polar=True)
         sc = ax.scatter(theta, r, c=c, cmap='viridis', s=10, alpha=0.75)
         ax.set_ylim(rmin, rmax)
@@ -1690,7 +1801,7 @@ def plot_hs_polar(data, station_names, save_path, data_type):
 
         cbar = plt.colorbar(sc, ax=ax, pad=0.1)
         cbar.set_label('Wave Height (m)')
-        ax.set_title(f"{data_type.capitalize()} Hm0 polar spectrum at {station} \n for Hm0 > 1 m \n The circular rings represent the frequency in Hz and \n the ticks along the circular axis represent \n the mean wave direction in degrees")
+        ax.set_title(f"{data_type.capitalize()} Hm0 polar spectrum \n at {station} \n for Hm0 > 1 m)\n")
         plt.tight_layout()
         fname = f"{data_type}_Hm0_polar_spectrum_{station.replace(' ', '_')}.png"
         plt.savefig(os.path.join(save_path, fname), dpi=200)
@@ -1705,7 +1816,7 @@ def plot_wave_occurrence_polar(data, station_names, save_path, data_type):
     import numpy as np
     import matplotlib.pyplot as plt
 
-    freq_ticks = np.array([0.05, 0.1, 0.2, 0.3, 0.4])
+    freq_ticks = np.array([0.04, 0.1, 0.2, 0.3, 0.4])
     log_freq_ticks = np.log10(freq_ticks)
     rmin = log_freq_ticks[0]
     rmax = log_freq_ticks[-1]
@@ -1743,7 +1854,7 @@ def plot_wave_occurrence_polar(data, station_names, save_path, data_type):
             continue
 
         frequencies = 1.0 / periods
-        mask = (~np.isnan(directions)) & (~np.isnan(frequencies)) & (frequencies >= 0.05) & (frequencies <= 0.4)
+        mask = (~np.isnan(directions)) & (~np.isnan(frequencies)) & (frequencies >= 0.04) & (frequencies <= 0.4)
         if not np.any(mask):
             print(f"No valid data for {station}, skipping.")
             continue
@@ -1760,7 +1871,7 @@ def plot_wave_occurrence_polar(data, station_names, save_path, data_type):
 
 
 
-        fig = plt.figure(figsize=(7, 7))
+        fig = plt.figure(figsize=(10, 10))
         ax = fig.add_subplot(111, polar=True)
         # Mask bins with counts <= 5 so they are not plotted
         H = H.astype(float)
@@ -1783,7 +1894,7 @@ def plot_wave_occurrence_polar(data, station_names, save_path, data_type):
 
         cbar = plt.colorbar(pcm, ax=ax, pad=0.1)
         cbar.set_label('Count of occurrences')
-        ax.set_title(f"{data_type.capitalize()} wave occurrence spectrum at {station} \n for occurrences > 5 \n The circular rings represent the frequency in Hz and \n the ticks along the circular axis represent \n the mean wave direction in degrees")
+        ax.set_title(f"{data_type.capitalize()} wave occurrence spectrum \n at {station} \n for occurrences > 5\n")
 
         plt.tight_layout()
         fname = f"{data_type}_occurrence_polar_{station.replace(' ', '_')}.png"
@@ -1809,6 +1920,8 @@ plot_hs_polar(ERA5_data_per_station, station_names, save_path_era5, data_type="e
 plot_wave_occurrence_polar(data_per_station, station_names, save_path_model, data_type="model")
 plot_wave_occurrence_polar(obs_data_per_station, station_names, save_path_buoy, data_type="buoy")
 plot_wave_occurrence_polar(ERA5_data_per_station, station_names, save_path_era5, data_type="era5")
+
+
 
 
 def compute_ursell_number(data_dict, depths, height_key="point_hm0", period_key="point_tp", depth_key="point_depth"):
@@ -1875,7 +1988,7 @@ def compute_ursell_number(data_dict, depths, height_key="point_hm0", period_key=
                 Ursell[i] = np.nan
                 continue
             L[i] = wave_length_iterative(H[i], Tp[i], h,g,tol = 1e-4)
-            Ursell[i] = (H[i] * L[i]**2) / (h**3) if h > 0 else np.nan
+            Ursell[i] = (H[i] * L[i]**2) / (4*(np.pi**2)*(h**3)) if h > 0 else np.nan
             
 
         # Compute wavelength and Ursell number
@@ -1953,7 +2066,7 @@ def plot_Length_and_Ursell_timeseries(data,station_names,save_path,data_type,var
     for station in station_names:
         for var in variable_list:
             if var in data[station]:
-                plt.figure(figsize=(14, 4))
+                plt.figure(figsize=(10, 8))
 
                 if data_type == "model":
                     plt.plot(data[station]['time'], data[station][var], label=var,color = 'blue')
@@ -1971,6 +2084,7 @@ def plot_Length_and_Ursell_timeseries(data,station_names,save_path,data_type,var
                 if var == 'Length':
                     plt.ylabel("Wavelength (m)")
                 elif var == 'Ursell':
+                    plt.axhline(0.1, color='black', linestyle='--', label='Start of influence of triads (U=0.1)')
                     plt.ylabel("Ursell Number (-)")
                 elif var == 'Depth_criteria':
                     plt.ylabel("Depth/Length (-)")
@@ -2256,6 +2370,17 @@ df_statistics = compute_benchmark_statistics(
 
 )
 
+small_df_statistics = compute_benchmark_statistics(
+    small_data_per_station,
+    variable_list,
+    era5_dict=ERA5_data_per_station,
+    buoy_dict=obs_data_per_station,	 
+    quantile_pinball=pinball_quantiles,
+    benchmarks=["buoy","era5"],
+    variable_mapping_era5=variable_mapping_era5,
+    variable_mapping_measurement=variable_mapping_measurements
+)
+
 
 # In[63]:
 
@@ -2435,7 +2560,7 @@ def plot_direction_error(df_directions, save_path,title,data_type):
 
         # Place legend in the top right corner
         plt.legend(loc='upper right')
-        plt.savefig(os.path.join(outpath, f"{title}_{station.replace(' ', '_')}.png"))
+        plt.savefig(os.path.join(outpath, f"{title.replace(' ', '_')}_{station}.png"))
         plt.close()
 
 def plot_direction_error_at_dates(df_directions, save_path, data_type, day_start, month_start, year_start, day_end, month_end, year_end):
@@ -2515,7 +2640,7 @@ def plot_direction_error_at_dates(df_directions, save_path, data_type, day_start
         )
         # Place legend in the top right corner
         plt.legend(loc='upper right')
-        plt.savefig(os.path.join(outpath, f"{data_type}_Mean_direction_error_{station.replace(' ', '_')}_between_{start}_and_{end}.png"))
+        plt.savefig(os.path.join(outpath, f"{data_type.replace(' ', '_')}_Mean_direction_error_{station}_between_{start}_and_{end}.png"))
         plt.close()
 
 def plot_direction_at_dates(df_directions, save_path, data_type, day_start, month_start, year_start, day_end, month_end, year_end):
@@ -2553,7 +2678,7 @@ def plot_direction_at_dates(df_directions, save_path, data_type, day_start, mont
         plt.grid(True)
         plt.xticks(rotation=45)
         plt.tight_layout()
-        plt.savefig(os.path.join(outpath, f"{data_type}_Mean_direction_timeseries_{station.replace(' ', '_')}_between_{start}_and_{end}.png"))
+        plt.savefig(os.path.join(outpath, f"{data_type.replace(' ', '_')}_Mean_direction_timeseries_{station}_between_{start}_and_{end}.png"))
         plt.close()
 
 def plot_direction(df_directions, save_path):
@@ -2578,7 +2703,7 @@ def plot_direction(df_directions, save_path):
         if df_directions[station]['wavedir_model'] is not None and len(df_directions[station]['wavedir_model']) > 0:
             plt.plot(times, obs, label='Observed Direction', color='tab:orange', marker='o', markersize=4)
         
-        plt.plot(times, model, label='Model Direction', color='tab:blue')
+        plt.plot(times, model, label='HurryWave model Direction', color='tab:blue')
         plt.ylim(-10, 370)
         plt.ylabel('Wave Direction (deg)')
         plt.xlabel('Time')
@@ -2587,7 +2712,7 @@ def plot_direction(df_directions, save_path):
         plt.grid(True)
         plt.xticks(rotation=45)
         plt.tight_layout()
-        plt.savefig(os.path.join(outpath, f"Mean_direction_timeseries_{station.replace(' ', '_')}.png"))
+        plt.savefig(os.path.join(outpath, f"Mean_direction_timeseries_{station}.png"))
         plt.close()
 
 def plot_direction_error_histogram(df_directions, save_path, title, data_type):
@@ -2658,7 +2783,7 @@ def plot_direction_error_histogram(df_directions, save_path, title, data_type):
         plt.legend()
         plt.tight_layout()
 
-        plt.savefig(os.path.join(outpath, f"{title}_hist_{station.replace(' ', '_')}.png"))
+        plt.savefig(os.path.join(outpath, f"{title.replace(' ', '_')}__hist_{station}.png"))
         plt.close()
 
 df_directions = create_df_directions(obs_data_per_station, data_per_station, ERA5_data_per_station, print_stats=True)
@@ -3498,6 +3623,7 @@ for station_name in station_names:
 # In[ ]:
 
 
+import matplotlib.dates as mdates
 def plot_station_data_comparison(
     station_name,
     model_df,
@@ -3508,12 +3634,12 @@ def plot_station_data_comparison(
     map_variable_era5=None,
     map_variable_buoy=None,
     df_statistics=None,
-    output_dir=output_dir,
-    show_map=True  # new argument to control map display
+    output_dir=None,
+    show_map=False
 ):
     """
-    Plot time series for selected variables at a single station, comparing model, ERA5, and/or buoy data.
-    Includes a map with the station location and a side panel showing statistical metrics.
+    Plot separate time series for Hm0 and Tp at a single station, comparing model, ERA5, and/or buoy data.
+    Each plot is saved as {variable}_his_comparison_{station_name}.png.
 
     Parameters:
         station_name (str): Name of the station to plot.
@@ -3522,126 +3648,70 @@ def plot_station_data_comparison(
         buoy_df (dict): Same structure as model_df for buoy data (optional).
         model_vars (list): Model variable names to include in the plot.
         benchmarks (list): Which benchmarks to include ("era5", "buoy", or both).
-        variable_mapping_era5 (dict): Mapping from model vars to ERA5 vars.
-        variable_mapping_buoy (dict): Mapping from model vars to buoy vars.
+        map_variable_era5 (dict): Mapping from model vars to ERA5 vars.
+        map_variable_buoy (dict): Mapping from model vars to buoy vars.
         df_statistics (dict): Nested dict of statistics.
-        show_map (bool): Whether to show the map above the plots.
+        output_dir (str): Directory to save plots.
+        show_map (bool): Unused (kept for compatibility).
     """
     if model_vars is None:
         model_vars = list(model_df.get(station_name, {}).keys())
 
-    n_vars = len(model_vars)
-    plot_height = 0.18
-    plot_space = 0.04  # space between plots
-
-    if show_map:
-        fig_height = 0.8 + n_vars * (plot_height + plot_space)
-        fig = plt.figure(figsize=(14, 3 * n_vars + 5))
-        fig.suptitle(f'Data Comparison at {station_name}', fontsize=16)
-
-        # Adjust map position
-        map_ax = fig.add_axes([0.05, 0.8, 0.6, 0.15])
-        m = Basemap(projection='merc', llcrnrlat=50, urcrnrlat=65,
-                    llcrnrlon=-5, urcrnrlon=10, resolution='i', ax=map_ax)
-        m.drawcoastlines()
-        m.fillcontinents(color='lightgray', lake_color='aqua')
-        m.drawmapboundary(fill_color='aqua')
-
-        lat = float(model_df[station_name]["station_y"])
-        lon = float(model_df[station_name]["station_x"])
-        x, y = m(lon, lat)
-        m.plot(x, y, 'ro', markersize=8)
-        map_ax.text(x, y, f' {station_name}', fontsize=10, color='black')
-
-        # Adjust time series plots position
-        axs = []
-        # stat_axs = []
-        for i in range(n_vars):
-            bottom = 0.6 - i * (plot_height + plot_space)
-            ax = fig.add_axes([0.05, bottom, 0.95, plot_height])
-            axs.append(ax)
-            # stat_ax = fig.add_axes([0.7, bottom, 0.25, plot_height])
-            # stat_axs.append(stat_ax)
-    else:
-        # Place plots directly under the title, evenly spaced, with enough space for text
-        fig_height = 0.2 + n_vars * (plot_height + plot_space)
-        fig = plt.figure(figsize=(14, 3 * n_vars + 2))
-        fig.suptitle(f'Data Comparison at {station_name}', fontsize=16)
-        axs = []
-        # stat_axs = []
-        for i in range(n_vars):
-            # Start just below the title, leave enough space between plots
-            # Increase bottom margin for more space below the last plot
-            extra_space = 0.08  # add extra space below all plots
-            bottom = 0.75 - i * (plot_height + plot_space) - extra_space * i / (n_vars - 1) if n_vars > 1 else 0.75
-            ax = fig.add_axes([0.05, bottom, 0.95, plot_height])
-            axs.append(ax)
-            # stat_ax = fig.add_axes([0.7, bottom, 0.25, plot_height])
-            # stat_axs.append(stat_ax)
-
+    # Only plot hm0 and tp if they exist
+    plot_vars = [v for v in model_vars if v.lower() in ["hm0", "tp", "point_hm0", "point_tp", "hs", "pp1d", "t13"]]
     time = model_df[station_name]["time"]
 
-    for i, var in enumerate(model_vars):
-        ax = axs[i]
+    for var in plot_vars:
+        fig, ax = plt.subplots(figsize=(10, 8))
         ax.grid(True)
 
-        # Assign units
-        if var in ['point_tp', 'pp1d', 't13','tp']:
-            unit ='s'
-        elif var in ['point_hm0', 'hm0','hs','swh']:
-            unit ='m'
-        elif var in ['point_wavdir']:
-            unit ='deg'
+        # Determine units
+        if var.lower() in ["point_tp", "pp1d", "t13", "tp"]:
+            unit = "s"
+        elif var.lower() in ["point_hm0", "hm0", "hs", "swh"]:
+            unit = "m"
         else:
-            unit =''
+            unit = ""
 
-        # Model
+        # Plot model data
         if var in model_df[station_name]:
-            print(f"Plotting {var} for model at {station_name}")
             ax.plot(time, model_df[station_name][var], label="HurryWave Model", color='blue')
 
-        # ERA5
+        # Plot ERA5 data
         if "era5" in benchmarks and era5_df:
             era5_var = map_variable_era5.get(var, var) if map_variable_era5 else var
             if era5_var in era5_df.get(station_name, {}):
-                ax.plot(time, era5_df[station_name][era5_var], label="ERA5",
-                        linestyle=':', color='green', alpha=0.6)
+                ax.plot(time, era5_df[station_name][era5_var], label="ERA5", linestyle=':', color='green', alpha=0.6)
 
-        # Buoy
+        # Plot buoy data
         if "buoy" in benchmarks and buoy_df:
             buoy_var = map_variable_buoy.get(var, var) if map_variable_buoy else var
             if buoy_var in buoy_df.get(station_name, {}) and np.size(buoy_df[station_name][buoy_var]) == np.size(time):
-                ax.plot(time, buoy_df[station_name][buoy_var], label="Buoy",
-                        linestyle=':', color='orange', alpha=0.6)
+                ax.plot(time, buoy_df[station_name][buoy_var], label="Buoy", linestyle=':', color='orange', alpha=0.6)
 
-        ax.set_title(var)
-        ax.set_ylabel(f'{var} ({unit})')
-        # Legend outside plot (top right)
-        ax.legend(loc="upper right", bbox_to_anchor=(1.15, 1), borderaxespad=0.)
+        ax.set_title(f"{var} Comparison at {station_name}")
+        ax.set_ylabel(f"{var} ({unit})")
+        ax.set_xlabel("Time")
+        ax.legend(loc="upper right")
 
-    axs[-1].set_xlabel("Time")
 
-    
+        # Format x-axis as dates
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
 
-        # Display statistics
-        # stat_ax.axis('off')
-        # if df_statistics and station_name in df_statistics and var in df_statistics[station_name]:
-        #     lines = []
-        #     stat_data = df_statistics[station_name][var]
-        #     for stat in stat_data:
-        #         line = f"{stat.capitalize()}"
-        #         for source in benchmarks:
-        #             if source in stat_data[stat]:
-        #                 val = stat_data[stat][source]
-        #                 line += f" ({source}): {val:.3f} ;"
-        #         line = line.rstrip(" ;")
-        #         lines.append(line)
-        #     stat_ax.text(0, 1, '\n'.join(lines), fontsize=9, va='top')
+        # Automatically adjust tick spacing depending on the time span
+        ax.xaxis.set_major_locator(mdates.AutoDateLocator(maxticks=10))
 
-    axs[-1].set_xlabel("Time")
-    plt.tight_layout(rect=[0, 0, 0.9, 0.95])  # leave space for legends outside
-    output_path = os.path.join(output_dir, f'His_graph_at_{station_name}.png')
-    fig.savefig(output_path, dpi=300, bbox_inches='tight')
+        # Rotate and align date labels to avoid overlap
+        fig.autofmt_xdate(rotation=30)
+
+        plt.tight_layout()
+
+        # Save figure
+        var_clean = var.lower().replace("point_", "")
+        output_path = os.path.join(output_dir, f"{var_clean}_his_comparison_{station_name}.png")
+        fig.savefig(output_path, dpi=300, bbox_inches='tight')
+        plt.close(fig)
+        print(f"Saved: {output_path}")
 
 
 def plot_all_stations(
@@ -3920,6 +3990,238 @@ combined_scatter_qq_all_stations(
     output_dir=output_dir
 )
 
+
+
+def combined_scatter_qq_station_small_vs_large(
+    station_name,
+    large_model_df,
+    small_model_df,
+    era5_df=None,
+    buoy_df=None,
+    model_vars=None,
+    benchmarks=["era5", "buoy"],
+    map_variable_era5=None,
+    map_variable_buoy=None,
+    df_statistics=None,
+    small_df_statistics=None,
+    output_dir=None,
+    pinball_quantiles=[0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95]
+):
+    """
+    """
+    if model_vars is None:
+        model_vars = list(large_model_df.get(station_name, {}).keys())
+
+    n_vars = len(model_vars)
+    fig, axes = plt.subplots(n_vars, 2, figsize=(12, 5 * n_vars))
+    if n_vars == 1:
+        axes = np.array([axes])
+
+    for i, var in enumerate(model_vars):
+        scatter_ax, qq_ax = axes[i]
+
+        large_vals = np.array(large_model_df[station_name].get(var))
+        if large_vals is None:
+            continue
+
+        # small model uses same variable names as large model (no mapping)
+        small_vals = None
+        if small_model_df and station_name in small_model_df:
+            small_vals = np.array(small_model_df[station_name].get(var))
+
+        buoy_var = map_variable_buoy.get(var, var) if map_variable_buoy else var
+
+        buoy_vals = np.array(buoy_df[station_name][buoy_var]) if buoy_df and buoy_var in buoy_df[station_name] else None
+
+        # Units
+        if var in ['point_tp', 'pp1d', 't13','tp']:
+            unit ='s'
+        elif var in ['point_hm0', 'hm0','hs','swh']:
+            unit ='m'
+        elif var in ['point_wavdir']:
+            unit ='deg'
+        else:
+            unit =''
+
+        # Determine common min/max for both plots (include small if present)
+        all_vals = np.concatenate([
+            large_vals[~np.isnan(large_vals)],
+            buoy_vals[~np.isnan(buoy_vals)] if buoy_vals is not None else np.array([]),
+            small_vals[~np.isnan(small_vals)] if (small_vals is not None) else np.array([])
+        ])
+        if all_vals.size == 0:
+            print(f"No data to plot for {station_name} {var}, skipping.")
+            continue
+        min_val, max_val = np.nanmin(all_vals), np.nanmax(all_vals)
+
+        ########################################
+        # SCATTER PLOT
+        ########################################
+        scatter_ax.plot([min_val, max_val], [min_val, max_val], 'k--')
+        text_lines = []
+
+        # Regular domain (blue)
+        if small_vals is not None and buoy_vals is not None:
+            mask = ~np.isnan(buoy_vals) & ~np.isnan(small_vals)
+            if np.sum(mask) > 1:
+                scatter_ax.scatter(buoy_vals[mask], small_vals[mask], color='blue', marker='^', label='HurryWave (regular domain)', alpha=0.9, s=10)
+                reg = LinearRegression().fit(buoy_vals[mask].reshape(-1,1), small_vals[mask])
+                scatter_ax.plot([min_val, max_val], reg.predict([[min_val],[max_val]]), color='blue', lw=2)
+                text_lines.append(f"Regular domain fit: y={reg.coef_[0]:.2f}x+{reg.intercept_:.2f}")
+
+        # Buoy vs large model (purple)
+        if buoy_vals is not None:
+            mask = ~np.isnan(large_vals) & ~np.isnan(buoy_vals)
+            if np.sum(mask) > 1:
+                scatter_ax.scatter(buoy_vals[mask], large_vals[mask], color='purple', label='HurryWave (large domain)', alpha=0.6, s=10)
+                reg = LinearRegression().fit(buoy_vals[mask].reshape(-1,1), large_vals[mask])
+                scatter_ax.plot([min_val, max_val], reg.predict([[min_val],[max_val]]), color='purple', lw=2)
+                text_lines.append(f"Larger domain fit: y={reg.coef_[0]:.2f}x+{reg.intercept_:.2f}")
+
+        scatter_ax.set_xlim(min_val-0.5, max_val+0.5)
+        scatter_ax.set_ylim(min_val-0.5, max_val+0.5)
+        scatter_ax.set_aspect('equal', adjustable='box')
+        scatter_ax.set_xlabel(f"Measured {var} ({unit})")
+        scatter_ax.set_ylabel(f"Model {var} ({unit})")
+        scatter_ax.grid(True)
+        scatter_ax.legend(loc = 'upper left')
+        scatter_ax.set_title(f"{var} Scatter Plot")
+        if text_lines:
+            scatter_ax.text(0.98, 0.02, "\n".join(text_lines), transform=scatter_ax.transAxes, fontsize=9,
+                            verticalalignment='bottom', horizontalalignment='right',
+                            bbox=dict(facecolor='white', alpha=0.7, edgecolor='none'))
+
+        ########################################
+        # QQ PLOT
+        ########################################
+        # Small vs Buoy QQ (purple)
+        if small_vals is not None and buoy_vals is not None:
+            mask = ~np.isnan(small_vals) & ~np.isnan(buoy_vals)
+            if np.any(mask):
+                ss, sb = np.sort(small_vals[mask]), np.sort(buoy_vals[mask])
+                min_len = min(len(ss), len(sb))
+                ss, sb = ss[:min_len], sb[:min_len]
+                qq_ax.scatter(sb, ss, color='blue', marker='^', s=10, alpha=0.9, label ='HurryWave (regular domain)')
+
+        # Large vs Buoy QQ (blue)
+        if buoy_vals is not None:
+            mask = ~np.isnan(large_vals) & ~np.isnan(buoy_vals)
+            if np.any(mask):
+                sm, sb = np.sort(large_vals[mask]), np.sort(buoy_vals[mask])
+                min_len = min(len(sm), len(sb))
+                sm, sb = sm[:min_len], sb[:min_len]
+                qq_ax.scatter(sb, sm, color='purple', s=10, alpha=0.6, label='HurryWave (large domain)')
+
+                # Quantile lines based on measured (buoy)
+                if pinball_quantiles:
+                    q_idx = (np.array(pinball_quantiles) * (min_len - 1)).astype(int)
+                    for idx in q_idx:
+                        qq_ax.axvline(sb[idx], color='gray', linestyle='--', alpha=0.3)
+                        qq_ax.axhline(sm[idx], color='gray', linestyle='--', alpha=0.3)
+
+        # Add pinball loss stats: use df_statistics for large and small_df_statistics for small
+        pinball_lines = ["Pinball loss to buoy \n (HurryWave large domain / \n HurryWave regular domain): \n"]
+        # Large
+        large_stats = df_statistics.get(station_name, {}).get(var, {}) if df_statistics else {}
+        small_stats = small_df_statistics.get(station_name, {}).get(var, {}) if small_df_statistics else {}
+
+        hurrywave_losses = {}
+        small_losses = {}
+
+        for stat, dct in large_stats.items():
+            if stat.startswith("Pinball Loss"):
+                match = re.search(r"q=([0-9]*\.?[0-9]+)", stat)
+                if match:
+                    q = float(match.group(1))
+                    hurrywave_losses[q] = dct.get("buoy", float('nan'))
+
+        for stat, dct in small_stats.items():
+            if stat.startswith("Pinball Loss"):
+                match = re.search(r"q=([0-9]*\.?[0-9]+)", stat)
+                if match:
+                    q = float(match.group(1))
+                    small_losses[q] = dct.get("buoy", float('nan'))
+
+        for q in sorted(set(list(hurrywave_losses.keys()) + list(small_losses.keys()))):
+            h_val = hurrywave_losses.get(q, float('nan'))
+            s_val = small_losses.get(q, float('nan'))
+            pinball_lines.append(f"q={q:.2f}: {h_val:.3f} / {s_val:.3f}")
+
+        if pinball_lines:
+            qq_ax.text(0.98, 0.02, "\n".join(pinball_lines), transform=qq_ax.transAxes,
+                       fontsize=8, verticalalignment='bottom', horizontalalignment='right',
+                       bbox=dict(facecolor='white', alpha=0.7, edgecolor='none'))
+
+        qq_ax.plot([min_val-0.5, max_val+0.5], [min_val-0.5, max_val+0.5], 'k--')
+        qq_ax.set_xlim(min_val-0.5, max_val+0.5)
+        qq_ax.set_ylim(min_val-0.5, max_val+0.5)
+        qq_ax.set_aspect('equal', 'box')
+        qq_ax.set_xlabel(f"Measured sorted {var} ({unit})")
+        qq_ax.set_ylabel(f"Model sorted {var} ({unit})")
+        qq_ax.legend(loc = 'upper left')
+        qq_ax.set_title(f"{var} QQ Plot")
+    
+    fig.suptitle(f'Combined Scatter and QQ: regular vs larger domain at {station_name}', fontsize=16)
+
+    plt.tight_layout()
+    if output_dir:
+        # different file name as requested
+        output_path = os.path.join(output_dir, f'Combined_Scatter_QQ_between_small_and_large_domain_{station_name}.png')
+        fig.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.close(fig)
+
+
+def combined_scatter_qq_all_stations_small_vs_large(
+    station_names,
+    large_model_df,
+    small_model_df,
+    era5_df=None,
+    buoy_df=None,
+    model_vars=None,
+    benchmarks=["era5", "buoy"],
+    map_variable_era5=None,
+    map_variable_buoy=None,
+    df_statistics=None,
+    small_df_statistics=None,
+    output_dir=None
+):
+    """
+    Loop over all stations and create combined scatter + QQ plots for each,
+    comparing small-domain to buoy (purple) and large-domain to buoy (blue),
+    and using small_df_statistics for small-domain stats.
+    """
+    for station_name in station_names:
+        combined_scatter_qq_station_small_vs_large(
+            station_name=station_name,
+            large_model_df=large_model_df,
+            small_model_df=small_model_df,
+            era5_df=era5_df,
+            buoy_df=buoy_df,
+            model_vars=model_vars,
+            benchmarks=benchmarks,
+            map_variable_era5=map_variable_era5,
+            map_variable_buoy=map_variable_buoy,
+            df_statistics=df_statistics,
+            small_df_statistics=small_df_statistics,
+            output_dir=output_dir,
+            pinball_quantiles=pinball_quantiles
+        )
+
+
+combined_scatter_qq_all_stations_small_vs_large(
+    station_names=station_names,
+    large_model_df=data_per_station,
+    small_model_df=small_data_per_station,
+    era5_df=None,
+    buoy_df=obs_data_per_station,
+    model_vars=variable_list,
+    benchmarks=["buoy"],
+    map_variable_era5=variable_mapping_era5,
+    map_variable_buoy=variable_mapping_measurements,
+    df_statistics=df_statistics,
+    small_df_statistics=small_df_statistics,
+    output_dir=output_dir
+)
 
 # In[68]:
 
@@ -5083,10 +5385,3 @@ if run_tests:
                             obs_data_per_station, 
                             output_dir, 
                             variable_list)
-
-
-
-
-
-
-
