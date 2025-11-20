@@ -39,6 +39,7 @@ parser.add_argument('--year', type=int, required=True, help='Year of the simulat
 args = parser.parse_args()
 
 year = args.year  # Year of the simulation
+# year = 1976
 
 name = str(year)
 
@@ -128,8 +129,8 @@ specs = {
 
 
 
-const_length_x = 0.05 * 421 # # Length of the domain in x-direction [degrees]
-const_length_y = 0.033333333 * 481 # Length of the domain in y-direction [degrees]
+const_length_x = np.abs(area[1] - area[3]) # # Length of the domain in x-direction [degrees]
+const_length_y = np.abs(area[0] - area[2]) # Length of the domain in y-direction [degrees]
 
 print('Length of the domain in x-direction:', const_length_x, 'degrees')
 print('Length of the domain in y-direction:', const_length_y, 'degrees')
@@ -265,6 +266,12 @@ era_5_data_wind = []
 
 lat_north, lon_west, lat_south, lon_east = area
 
+def normalize_lon(lon):
+    """Convert -180–180 lon to 0–360 if needed."""
+    if lon < 0:
+        return lon + 360
+    return lon
+
 # Update the loop to append file paths to a list and use xr.open_mfdataset for multiple years
 
 for year in range(int(year_start), int(year_end) + 1):
@@ -277,7 +284,29 @@ ds_v = xr.open_mfdataset(era_5_files_wind_v, combine='by_coords')
 
 print("ERA5 wind data loaded successfully.")
 
-# Merge the two datasets on their coordinates
+# Slice latitude
+ds_u = ds_u.sel(latitude=slice(lat_north, lat_south))
+ds_v = ds_v.sel(latitude=slice(lat_north, lat_south))
+
+# Slice longitude, handling wrap-around
+lon_west_360 = normalize_lon(lon_west)
+lon_east_360 = normalize_lon(lon_east)
+
+def slice_longitude(ds, lon_west_360, lon_east_360):
+    if lon_west_360 <= lon_east_360:
+        ds = ds.sel(longitude=slice(lon_west_360, lon_east_360))
+    else:
+        ds1 = ds.sel(longitude=slice(lon_west_360, 360))
+        ds2 = ds.sel(longitude=slice(0, lon_east_360))
+        ds = xr.concat([ds1, ds2], dim='longitude')
+    # Convert to -180–180 and sort
+    ds = ds.assign_coords(longitude=((ds.longitude + 180) % 360) - 180).sortby('longitude')
+    return ds
+
+ds_u = slice_longitude(ds_u, lon_west_360, lon_east_360)
+ds_v = slice_longitude(ds_v, lon_west_360, lon_east_360)
+
+# Merge u and v
 era_5_data_wind = xr.merge([ds_u, ds_v])
 
 print("ERA5 wind data merged successfully.")

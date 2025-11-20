@@ -34,11 +34,13 @@ main_path  = '/gpfs/work3/0/ai4nbs/hurry_wave/north_sea' # Path to the main fold
 if not os.path.exists(main_path):
     os.mkdir(main_path)
 
-name = 'sensitivity_december2023_TEMPLATE'
+name = 'MONTHSIMTEST'
+
+year = 2013
 
 model_setup = os.path.join(main_path, '04_modelruns',name)
 
-data_path = '/gpfs/work3/0/ai4nbs/ERA5_data'
+data_path = '/gpfs/work3/0/ai4nbs/ERA5_data/data'
 
 # Path to hurrywave.exe
 # path_to_exe = r'C:\Users\User\OneDrive\Documents\Python\PYTHON_MSC_CE\Year_2\Python_Thesis\cht_hurrywave\examples\DanielTest\06_executables\hurrywave\hurrywave.exe'
@@ -72,8 +74,8 @@ specs = {
     'dt': 300,                      # Time-step size [s]
     'dtwnd': 1800.0,                # Time-interval for wind update [s]
 
-    'tstart': "20231201 000000",    # Start date [YYYYMMDD HHMMSS] WITHOUT INCLUDING SPINUP
-    'tstop': "20231231 235959",     # Stop date [YYYYMMDD HHMMSS]
+    'tstart': "20131201 000000",    # Start date [YYYYMMDD HHMMSS] WITHOUT INCLUDING SPINUP
+    'tstop': "20131231 235959",     # Stop date [YYYYMMDD HHMMSS]
     'tspinup': 31*24*3600,              # Spin-up duration [s] (31 days in seconds)
 
     'dtmapout': 3600,               # Time-step for map output [s] - NOT IN DOCS
@@ -122,8 +124,9 @@ specs = {
 
 
 
-const_length_x = 0.05 * 421 # # Length of the domain in x-direction [degrees]
-const_length_y = 0.033333333 * 481 # Length of the domain in y-direction [degrees]
+
+const_length_x = np.abs(area[1] - area[3]) # # Length of the domain in x-direction [degrees]
+const_length_y = np.abs(area[0] - area[2]) # Length of the domain in y-direction [degrees]
 
 print('Length of the domain in x-direction:', const_length_x, 'degrees')
 print('Length of the domain in y-direction:', const_length_y, 'degrees')
@@ -152,7 +155,7 @@ def change_space_resolution_y(new_dy, specs, const_length_y=const_length_y):
     specs['dy'] = new_dy
     specs['nmax'] = new_nmax
 
-def change_start_time():
+def change_start_time(specs):
     """
     Change the start time, stop time, and reference time in specs based on the year in 'name'.
     Sets tstop to YYYY1231 235900 and tstart/tref to (YYYY0101 000000 - tspinup).
@@ -164,9 +167,8 @@ def change_start_time():
     tstart_str = tstart_dt.strftime("%Y%m%d %H%M%S")
     specs['tstart'] = tstart_str
     specs['tref'] = tstart_str
-    
 
-def update_input(hw,specs, const_length_x=const_length_x, const_length_y=const_length_y):
+def update_input(hw, specs, const_length_x=const_length_x, const_length_y=const_length_y):
     """
     Update the input file of the model with the new parameters.
     :param hw: HurryWave object
@@ -174,12 +176,12 @@ def update_input(hw,specs, const_length_x=const_length_x, const_length_y=const_l
     """
     change_space_resolution_x(specs['dx'], specs, const_length_x)
     change_space_resolution_y(specs['dy'], specs, const_length_y)
-    change_start_time()
+    change_start_time(specs)
     # Update the input file with the new parameters
     hw.input.update(specs)
     hw.input.write()
 
-update_input(hw,specs,const_length_x=const_length_x, const_length_y=const_length_y)
+update_input(hw, specs, const_length_x=const_length_x, const_length_y=const_length_y)
 
 # # Cut down ERA5 data to the geography and period of interest
 year_start = specs['tstart'][:4]
@@ -191,6 +193,12 @@ era_5_data_wind = []
 
 lat_north, lon_west, lat_south, lon_east = area
 
+def normalize_lon(lon):
+    """Convert -180–180 lon to 0–360 if needed."""
+    if lon < 0:
+        return lon + 360
+    return lon
+
 # Update the loop to append file paths to a list and use xr.open_mfdataset for multiple years
 
 for year in range(int(year_start), int(year_end) + 1):
@@ -198,23 +206,32 @@ for year in range(int(year_start), int(year_end) + 1):
     era_5_files_wind_v.append(os.path.join(data_path, '10m_v_component_of_wind', f'global_10m_v_component_of_wind_{year}.nc')) 
 
 # Open multiple files as a single dataset with u and v wind components
-datasets_u = []
-for f in era_5_files_wind_u:
-    ds = xr.open_dataset(f)
-    ds = ds.sel(latitude=slice(lat_north, lat_south), longitude=slice(lon_west, lon_east))
-    datasets_u.append(ds)
-
-ds_u = xr.concat(datasets_u, dim='time')
-
-datasets_v = []
-for f in era_5_files_wind_v:
-    ds = xr.open_dataset(f)
-    ds = ds.sel(latitude=slice(lat_north, lat_south), longitude=slice(lon_west, lon_east))
-    datasets_v.append(ds)
-
-ds_v = xr.concat(datasets_v, dim='time')
+ds_u = xr.open_mfdataset(era_5_files_wind_u, combine='by_coords')
+ds_v = xr.open_mfdataset(era_5_files_wind_v, combine='by_coords')
 
 print("ERA5 wind data loaded successfully.")
+
+# Slice latitude
+ds_u = ds_u.sel(latitude=slice(lat_north, lat_south))
+ds_v = ds_v.sel(latitude=slice(lat_north, lat_south))
+
+# Slice longitude, handling wrap-around
+lon_west_360 = normalize_lon(lon_west)
+lon_east_360 = normalize_lon(lon_east)
+
+def slice_longitude(ds, lon_west_360, lon_east_360):
+    if lon_west_360 <= lon_east_360:
+        ds = ds.sel(longitude=slice(lon_west_360, lon_east_360))
+    else:
+        ds1 = ds.sel(longitude=slice(lon_west_360, 360))
+        ds2 = ds.sel(longitude=slice(0, lon_east_360))
+        ds = xr.concat([ds1, ds2], dim='longitude')
+    # Convert to -180–180 and sort
+    ds = ds.assign_coords(longitude=((ds.longitude + 180) % 360) - 180).sortby('longitude')
+    return ds
+
+ds_u = slice_longitude(ds_u, lon_west_360, lon_east_360)
+ds_v = slice_longitude(ds_v, lon_west_360, lon_east_360)
 
 # Merge the two datasets on their coordinates
 era_5_data_wind = xr.merge([ds_u, ds_v])
@@ -230,15 +247,6 @@ era_5_data_wind = era_5_data_wind.sel(
 # Rename the time coordinate to 'valid_time' if it exists
 if 'time' in era_5_data_wind.coords:
     era_5_data_wind = era_5_data_wind.rename({'time': 'valid_time'})
-
-    # Convert tstart and tstop to datetime objects
-    tstart_dt = datetime.strptime(specs['tstart'], "%Y%m%d %H%M%S")
-    tstop_dt = datetime.strptime(specs['tstop'], "%Y%m%d %H%M%S")
-
-    # Select only the time range of interest
-    era_5_data_wind = era_5_data_wind.sel(
-        valid_time=slice(tstart_dt, tstop_dt)
-    )
 
 output_folder = os.path.join(main_path, "01_data", "ERA_5_data","YearSims", name)
 os.makedirs(output_folder, exist_ok=True)
@@ -443,16 +451,6 @@ meteo_grid.write_to_delft3d(os.path.join(hw.path, "hurrywave"))
 
 hw.input.variables.amufile = "hurrywave.amu"
 hw.input.variables.amvfile = "hurrywave.amv"
-
-# from cht_hurrywave.boundary_conditions import HurryWaveBoundaryConditions
-
-# bnd_points = HurryWaveBoundaryConditions(hw = hw)
-# bnd_points.get_boundary_points_from_mask(bnd_dist=10000)
-# bnd_points.write_boundary_points()
-
-# # Set all boundary conditions to constant values
-# bnd_points.set_timeseries_uniform(hs = 1.0, tp = 6.0, wd = 315, ds = 20.0)
-# bnd_points.write_boundary_conditions_timeseries()
 
 hw.write()
 
