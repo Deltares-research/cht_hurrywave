@@ -2173,37 +2173,40 @@ class QuadtreeBathymetry:
             print(e)
             return False
 
-
-
-
 def odd(num):
     return np.mod(num, 2) == 1
 
 def even(num):
     return np.mod(num, 2) == 0
 
-def inpolygon(xq, yq, p): # p is a Polygon object, xq and yq are arrays of x and y coordinates  
-    shape = xq.shape
-    xq = xq.reshape(-1)
-    yq = yq.reshape(-1)
-    # Create list of points in tuples
-    q = [(xq[i], yq[i]) for i in range(xq.shape[0])]
-    # Create list with inout logicals (starting with False)
-    inp = [False for i in range(xq.shape[0])]
-    # Now start with exterior
-    # Check if point is in exterior
-    pth = path.Path([(crds[0], crds[1]) for i, crds in enumerate(p.exterior.coords)])
-    # Check if point is in exterior
-    inext = pth.contains_points(q).astype(bool)
-    # Set inp to True where inext is True
-    inp = np.logical_or(inp, inext)
-    # Check if point is in interior
-    for interior in p.interiors:
-        pth = path.Path([(crds[0], crds[1]) for i, crds in enumerate(interior.coords)])
-        inint = pth.contains_points(q).astype(bool)
-        inp = np.logical_xor(inp, inint)
-    # inp = inexterior(q, p, inp)
-    return inp.reshape(shape)
+def inpolygon(xq, yq, poly):
+    coords = np.column_stack((xq.ravel(), yq.ravel()))
+    pts = shapely.points(coords)
+    inside = shapely.contains(poly, pts)   # vectorized
+    return inside.reshape(xq.shape)
+
+# def inpolygon(xq, yq, p): # p is a Polygon object, xq and yq are arrays of x and y coordinates  
+#     shape = xq.shape
+#     xq = xq.reshape(-1)
+#     yq = yq.reshape(-1)
+#     # Create list of points in tuples
+#     q = [(xq[i], yq[i]) for i in range(xq.shape[0])]
+#     # Create list with inout logicals (starting with False)
+#     inp = [False for i in range(xq.shape[0])]
+#     # Now start with exterior
+#     # Check if point is in exterior
+#     pth = path.Path([(crds[0], crds[1]) for i, crds in enumerate(p.exterior.coords)])
+#     # Check if point is in exterior
+#     inext = pth.contains_points(q).astype(bool)
+#     # Set inp to True where inext is True
+#     inp = np.logical_or(inp, inext)
+#     # Check if point is in interior
+#     for interior in p.interiors:
+#         pth = path.Path([(crds[0], crds[1]) for i, crds in enumerate(interior.coords)])
+#         inint = pth.contains_points(q).astype(bool)
+#         inp = np.logical_xor(inp, inint)
+#     # inp = inexterior(q, p, inp)
+#     return inp.reshape(shape)
 
 def binary_search(val_array, vals):    
     indx = np.searchsorted(val_array, vals) # ind is size of vals 
