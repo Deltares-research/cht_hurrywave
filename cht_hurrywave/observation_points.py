@@ -55,7 +55,7 @@ class HurryWaveObservationPointsRegular:
 
         # Read the bnd file
         df = pd.read_csv(file_name, index_col=False, header=None,
-             sep="\s+", names=['x', 'y', 'name'])
+             sep=r"\s+", names=['x', 'y', 'name'])
 
         gdf_list = []
         # Loop through points
@@ -185,7 +185,7 @@ class HurryWaveObservationPointsSpectra:
 
         # Read the bnd file
         df = pd.read_csv(file_name, index_col=False, header=None,
-                         sep="\s+", names=['x', 'y', 'name'])
+                         sep=r"\s+", names=['x', 'y', 'name'])
 
         gdf_list = []
         # Loop through points
