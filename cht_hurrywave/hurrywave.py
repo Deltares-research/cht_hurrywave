@@ -451,8 +451,7 @@ class HurryWave:
                          z_range=None,
                          dem_names=None):
         
-        from cht_tiling.tiling import deg2num
-        from cht_tiling.tiling import num2deg
+        from cht_tiling.utils import deg2num, num2deg
         import cht_utils.fileops as fo
         
         if not zoom_range:
@@ -479,19 +478,9 @@ class HurryWave:
             fo.rmdir(path)
             
         if z_range:
-            # Only want data in specific range
-            # Need to do some other stuff here
-            from cht_bathymetry.bathymetry_database import bathymetry_database
-            from cht_tiling.tiling import get_bathy_on_tile
-
-            for dem_name in dem_names:
-                dem_crs = []
-                transformer_3857_to_dem = []                
-                for dem_name in dem_names:                
-                    dem_crs.append(bathymetry_database.get_crs(dem_name))            
-                    transformer_3857_to_dem.append(Transformer.from_crs(CRS.from_epsg(3857),
-                                                                        dem_crs[-1],
-                                                                        always_xy=True))
+            # TODO: z_range filtering needs reimplementation using hydromt data catalog
+            # (cht_bathymetry and get_bathy_on_tile have been removed)
+            pass
         
         for izoom in range(zoom_range[0], zoom_range[1] + 1):
             
@@ -544,17 +533,7 @@ class HurryWave:
                     ind[iind>=self.input.variables.mmax] = -999
                     ind[jind>=self.input.variables.nmax] = -999
 
-                    if z_range:
-                        # Need temporarily create topo indices here to make indices
-                        # only for specific depth ranges
-                        z = get_bathy_on_tile(xm, ym,
-                                              dem_names,
-                                              dem_crs,
-                                              transformer_3857_to_dem,
-                                              dxy,
-                                              bathymetry_database)
-                        ind[z<z_range[0]] = -999
-                        ind[z>z_range[1]] = -999
+                    # TODO: z_range filtering removed (cht_bathymetry dependency)
 
                     # if self.mask:
                     if ind.max()>=0:
