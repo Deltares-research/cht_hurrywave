@@ -4,7 +4,7 @@ import pandas as pd
 import math
 import os
 import xarray as xr
-from cht_utils.misc_tools import interp2
+from cht_utils.interpolation import interp2
 
 # from cht_bathymetry.bathymetry_database import bathymetry_database
 
