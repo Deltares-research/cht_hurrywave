@@ -17,22 +17,24 @@ Functions
 """
 
 import os
-import numpy as np
+
 import geopandas as gpd
-import shapely
+import numpy as np
 import pandas as pd
-from tabulate import tabulate
+import shapely
 from pyproj import Transformer
+from tabulate import tabulate
+
 
 class HurryWaveBoundaryConditions:
     """
     A class to manage boundary conditions for the HurryWave model.
     """
-    
+
     def __init__(self, hw):
         """
         Initializes the boundary conditions handler.
-        
+
         Parameters
         ----------
         hw : object
@@ -69,7 +71,9 @@ class HurryWaveBoundaryConditions:
             return
 
         file_name = os.path.join(self.model.path, self.model.input.variables.bndfile)
-        df = pd.read_csv(file_name, index_col=False, header=None, sep=r"\s+", names=['x', 'y'])
+        df = pd.read_csv(
+            file_name, index_col=False, header=None, sep=r"\s+", names=["x", "y"]
+        )
 
         gdf_list = []
         for ind in range(len(df.x.values)):
@@ -77,7 +81,12 @@ class HurryWaveBoundaryConditions:
             x = df.x.values[ind]
             y = df.y.values[ind]
             point = shapely.geometry.Point(x, y)
-            d = {"name": name, "timeseries": pd.DataFrame(), "spectra": None, "geometry": point}
+            d = {
+                "name": name,
+                "timeseries": pd.DataFrame(),
+                "spectra": None,
+                "geometry": point,
+            }
             gdf_list.append(d)
         self.gdf = gpd.GeoDataFrame(gdf_list, crs=self.model.crs)
 
@@ -97,14 +106,14 @@ class HurryWaveBoundaryConditions:
             for _, row in self.gdf.iterrows():
                 x, y = row["geometry"].coords[0]
                 if self.model.crs.is_geographic:
-                    fid.write(f'{x:12.6f}{y:12.6f}\n')
+                    fid.write(f"{x:12.6f}{y:12.6f}\n")
                 else:
-                    fid.write(f'{x:12.1f}{y:12.1f}\n')
-    
+                    fid.write(f"{x:12.1f}{y:12.1f}\n")
+
     def set_timeseries_uniform(self, hs, tp, wd, ds):
         """
         Sets uniform time series boundary conditions for all points.
-        
+
         Parameters
         ----------
         hs : float
@@ -125,11 +134,10 @@ class HurryWaveBoundaryConditions:
             df.set_index("time", inplace=True)
             self.gdf.at[index, "timeseries"] = df
 
-
     def add_point(self, x, y, hs=1.0, tp=8.0, wd=0.0, ds=30.0):
         """
         Adds a new boundary point at the specified coordinates.
-        
+
         Parameters
         ----------
         x : float
@@ -140,15 +148,27 @@ class HurryWaveBoundaryConditions:
         name = str(len(self.gdf.index) + 1).zfill(4)
         point = shapely.geometry.Point(x, y)
         # Create GDF for the new point
-        gdf = gpd.GeoDataFrame(columns=["name", "timeseries", "spectra", "geometry"], crs=self.model.crs)
+        gdf = gpd.GeoDataFrame(
+            columns=["name", "timeseries", "spectra", "geometry"], crs=self.model.crs
+        )
         gdf.at[0, "name"] = name
         gdf.at[0, "geometry"] = point
         if self.gdf.empty:
-            df = pd.DataFrame({"time": [self.model.input.variables.tstart, self.model.input.variables.tstop],
-                            "hs": [hs, hs], "tp": [tp, tp], "wd": [wd, wd], "ds": [ds, ds]}).set_index("time")
+            df = pd.DataFrame(
+                {
+                    "time": [
+                        self.model.input.variables.tstart,
+                        self.model.input.variables.tstop,
+                    ],
+                    "hs": [hs, hs],
+                    "tp": [tp, tp],
+                    "wd": [wd, wd],
+                    "ds": [ds, ds],
+                }
+            ).set_index("time")
         else:
             # Copy from fist point in self.gdf
-            df = self.gdf["timeseries"].iloc[0].copy()            
+            df = self.gdf["timeseries"].iloc[0].copy()
         gdf.at[0, "timeseries"] = df
         # Append the new point to the existing GeoDataFrame
         self.gdf = pd.concat([self.gdf, gdf], ignore_index=True)
@@ -156,7 +176,7 @@ class HurryWaveBoundaryConditions:
     def delete_point(self, index):
         """
         Deletes a boundary point by index.
-        
+
         Parameters
         ----------
         index : int
@@ -164,20 +184,18 @@ class HurryWaveBoundaryConditions:
         """
         if len(self.gdf.index) == 0 or index >= len(self.gdf.index):
             return
-        
+
         self.gdf = self.gdf.drop(index).reset_index(drop=True)
         for idx, _ in self.gdf.iterrows():
             self.gdf.at[idx, "name"] = str(idx + 1).zfill(4)
-        
 
     def clear(self):
-        self.gdf  = gpd.GeoDataFrame()
-
+        self.gdf = gpd.GeoDataFrame()
 
     def read_boundary_time_series(self):
         """
         Reads boundary time series from HurryWave input files (bhs, btp, bwd, bds) and stores them in the model.
-        
+
         The function retrieves time series for significant wave height (Hs), peak period (Tp), wave direction (Wd),
         and directional spreading (Ds) for each boundary point.
         """
@@ -229,7 +247,7 @@ class HurryWaveBoundaryConditions:
     def write_boundary_conditions_timeseries(self):
         """
         Writes boundary condition time series data to HurryWave input files.
-        
+
         Outputs include significant wave height (Hs), peak period (Tp), wave direction (Wd),
         and directional spreading (Ds), which are saved in separate files.
         """
@@ -243,8 +261,12 @@ class HurryWaveBoundaryConditions:
         def write_timeseries(var_name, file_ext):
             if not getattr(self.model.input.variables, var_name):
                 setattr(self.model.input.variables, var_name, f"hurrywave.{file_ext}")
-            file_name = os.path.join(self.model.path, getattr(self.model.input.variables, var_name))
-            df = pd.DataFrame({ip: point["timeseries"][file_ext] for ip, point in self.gdf.iterrows()})
+            file_name = os.path.join(
+                self.model.path, getattr(self.model.input.variables, var_name)
+            )
+            df = pd.DataFrame(
+                {ip: point["timeseries"][file_ext] for ip, point in self.gdf.iterrows()}
+            )
             df.index = dt
             to_fwf(df, file_name)
 
@@ -262,7 +284,9 @@ class HurryWaveBoundaryConditions:
         if file_name is None:
             if self.model.input.variables.bspfile is None:
                 self.model.input.variables.bspfile = "hurrywave.bsp"
-            file_name = os.path.join(self.model.path, self.model.input.variables.bspfile)
+            file_name = os.path.join(
+                self.model.path, self.model.input.variables.bspfile
+            )
 
         sp20 = self.gdf["spectra"][0]
         times = sp20.coords["time"].values
@@ -277,30 +301,34 @@ class HurryWaveBoundaryConditions:
             sp2[:, ip, :, :] = point["spectra"].values
 
         ds = xr.Dataset(
-            data_vars=dict(point_spectrum2d=(["time", "stations", "theta", "sigma"], sp2),
-                           station_x=(["stations"], np.single(xs)),
-                           station_y=(["stations"], np.single(ys))),
-            coords=dict(time=times, stations=points, theta=theta, sigma=sigma)
+            data_vars=dict(
+                point_spectrum2d=(["time", "stations", "theta", "sigma"], sp2),
+                station_x=(["stations"], np.single(xs)),
+                station_y=(["stations"], np.single(ys)),
+            ),
+            coords=dict(time=times, stations=points, theta=theta, sigma=sigma),
         )
 
-        dstr = "seconds since " + self.model.input.variables.tref.strftime("%Y%m%d %H%M%S")
-        ds.to_netcdf(path=file_name, mode='w', encoding={'time': {'units': dstr}})
+        dstr = "seconds since " + self.model.input.variables.tref.strftime(
+            "%Y%m%d %H%M%S"
+        )
+        ds.to_netcdf(path=file_name, mode="w", encoding={"time": {"units": dstr}})
 
     def get_boundary_points_from_mask(self, min_dist=None, bnd_dist=50000.0):
         """
         Identifies boundary points from a mask and interpolates them along boundary lines.
 
-        This function extracts boundary points from the computational grid's mask where 
-        the value is `2`. It then connects nearby points into polylines and interpolates 
+        This function extracts boundary points from the computational grid's mask where
+        the value is `2`. It then connects nearby points into polylines and interpolates
         new points along these lines to ensure evenly spaced boundary points.
 
         Parameters
         ----------
         min_dist : float, optional
-            The minimum distance between two connected boundary points. If not provided, 
+            The minimum distance between two connected boundary points. If not provided,
             it defaults to twice the grid resolution (`2 * dx`).
         bnd_dist : float, optional, default=50000.0
-            The target distance [m] for interpolated boundary points. The function will 
+            The target distance [m] for interpolated boundary points. The function will
             generate points along boundary lines at approximately this interval (in [m]).
 
 
@@ -309,7 +337,7 @@ class HurryWaveBoundaryConditions:
         None
             Updates `self.gdf` with the identified and interpolated boundary points.
         """
-        
+
         # Default min_dist to twice the grid spacing if not provided
         if min_dist is None:
             min_dist = self.model.grid.data.dx * 2
@@ -323,14 +351,13 @@ class HurryWaveBoundaryConditions:
         y = xy[:, 1]
         xp, yp = x[ibnd], y[ibnd]  # Boundary coordinates
 
-        # Make boolean array for points that are include in a polyline 
+        # Make boolean array for points that are include in a polyline
         used = np.full(xp.shape, False, dtype=bool)
 
         # Make list of polylines. Each polyline is a list of indices of boundary points.
         polylines = []
 
         while True:
-
             if np.all(used):
                 # All boundary grid points have been used. We can stop now.
                 break
@@ -342,7 +369,7 @@ class HurryWaveBoundaryConditions:
             used[i1] = True
 
             # Start new polyline with index i1
-            polyline = [i1] 
+            polyline = [i1]
 
             while True:
                 # Compute distances to all points that have not been used
@@ -351,7 +378,7 @@ class HurryWaveBoundaryConditions:
                 # Get all indices of unused points
                 unused_indices = np.where(~used)[0]
 
-                dst = np.sqrt((xpunused - xp[i1])**2 + (ypunused - yp[i1])**2)
+                dst = np.sqrt((xpunused - xp[i1]) ** 2 + (ypunused - yp[i1]) ** 2)
                 if np.all(np.isnan(dst)):
                     break
                 inear = np.nanargmin(dst)
@@ -364,7 +391,7 @@ class HurryWaveBoundaryConditions:
                 else:
                     # Last point found
                     break
-            
+
             # Now work the other way
             # Start with first point of polyline
             i1 = polyline[0]
@@ -372,11 +399,11 @@ class HurryWaveBoundaryConditions:
                 if np.all(used):
                     # All boundary grid points have been used. We can stop now.
                     break
-                # Now we go in the other direction            
+                # Now we go in the other direction
                 xpunused = xp[~used]
                 ypunused = yp[~used]
                 unused_indices = np.where(~used)[0]
-                dst = np.sqrt((xpunused - xp[i1])**2 + (ypunused - yp[i1])**2)
+                dst = np.sqrt((xpunused - xp[i1]) ** 2 + (ypunused - yp[i1]) ** 2)
                 inear = np.nanargmin(dst)
                 inearall = unused_indices[inear]
                 if dst[inear] < min_dist:
@@ -389,14 +416,12 @@ class HurryWaveBoundaryConditions:
                     # Last nearby point found
                     break
 
-            if len(polyline) > 1:  
+            if len(polyline) > 1:
                 polylines.append(polyline)
 
         # Transform to web mercator to get distance in metres
         if self.model.crs.is_geographic:
-            transformer = Transformer.from_crs(self.model.crs,
-                                            3857,
-                                            always_xy=True)
+            transformer = Transformer.from_crs(self.model.crs, 3857, always_xy=True)
         gdf_list = []
         ip = 0
 
@@ -404,46 +429,50 @@ class HurryWaveBoundaryConditions:
         for polyline in polylines:
             x = xp[polyline]
             y = yp[polyline]
-            points = [(x,y) for x,y in zip(x.ravel(),y.ravel())]
+            points = [(x, y) for x, y in zip(x.ravel(), y.ravel())]
             line = shapely.geometry.LineString(points)
             if self.model.crs.is_geographic:
                 # Line in web mercator (to get length in metres)
                 xm, ym = transformer.transform(x, y)
-                pointsm = [(xm,ym) for xm,ym in zip(xm.ravel(),ym.ravel())]
+                pointsm = [(xm, ym) for xm, ym in zip(xm.ravel(), ym.ravel())]
                 linem = shapely.geometry.LineString(pointsm)
                 num_points = int(linem.length / bnd_dist) + 2
             else:
                 num_points = int(line.length / bnd_dist) + 2
 
             # Generate evenly spaced points along the polyline
-            new_points = [line.interpolate(i / float(num_points - 1), normalized=True) for i in range(num_points)]
+            new_points = [
+                line.interpolate(i / float(num_points - 1), normalized=True)
+                for i in range(num_points)
+            ]
 
             # Store points in GeoDataFrame format
             for point in new_points:
-                gdf_list.append({
-                    "name": str(ip + 1).zfill(4),
-                    "timeseries": pd.DataFrame(),
-                    "spectra": None,
-                    "geometry": point
-                })
+                gdf_list.append(
+                    {
+                        "name": str(ip + 1).zfill(4),
+                        "timeseries": pd.DataFrame(),
+                        "spectra": None,
+                        "geometry": point,
+                    }
+                )
                 ip += 1  # Increment point counter
 
         # Store the final boundary points in a GeoDataFrame
         self.gdf = gpd.GeoDataFrame(gdf_list, crs=self.model.crs)
 
 
-
 def read_timeseries_file(file_name, ref_date):
     """
     Reads a time series file and returns a DataFrame.
-    
+
     Parameters
     ----------
     file_name : str
         Path to the time series file.
     ref_date : datetime
         Reference date for time indexing.
-    
+
     Returns
     -------
     DataFrame
@@ -457,7 +486,7 @@ def read_timeseries_file(file_name, ref_date):
 def to_fwf(df, fname, floatfmt=".3f"):
     """
     Writes a DataFrame to a fixed-width formatted file.
-    
+
     Parameters
     ----------
     df : DataFrame

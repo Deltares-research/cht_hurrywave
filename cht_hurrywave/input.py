@@ -1,47 +1,36 @@
-# -*- coding: utf-8 -*-
 """
-Created on Sat Jun 18 09:03:08 2022
-@author: ormondt
+HurryWave input file handling.
+
+Provides :class:`HurryWaveInput`, which reads and writes the ``hurrywave.inp``
+key-value parameter file and stores all model configuration variables.
 """
-import os
-import datetime
+
 import copy
+import datetime
+import os
+
 
 class Variables:
-    def __init__(self):
+    """Container for HurryWave input variables."""
+
+    def __init__(self) -> None:
         pass
+
 
 class HurryWaveInput:
     """
-    A class to handle the input configuration for the HurryWave model. This class manages the 
-    initialization, reading, writing, and updating of input parameters used in the model simulation.
+    Manage the ``hurrywave.inp`` configuration file.
 
-    The class provides functionality to:
+    Initialises default values for all model parameters, and provides
+    methods to read from and write to disk.
 
-    - Initialize default values for various model parameters.
-    - Read input values from an existing "hurrywave.inp" file and store them as model variables.
-    - Write the current model configuration to the "hurrywave.inp" file.
-    - Print the current configuration for inspection.
-    - Update specific parameters in the model configuration.
-
-    Key Methods:
-
-    - __init__:
-         Initializes the input parameters with default values.
-    - read:
-         Reads the "hurrywave.inp" file and updates the model parameters.
-    - write: 
-         Writes the current input parameters to the "hurrywave.inp" file.
-    - print:
-         Prints the current configuration of the model's input parameters to the console.
-    - update:
-         Updates the model's input parameters with new values.
-
-    Arguments:
-    - hw: The HurryWave model object to which the input parameters belong.
+    Parameters
+    ----------
+    hw : HurryWave
+        Parent HurryWave model instance.
     """
-    def __init__(self, hw):
 
+    def __init__(self, hw) -> None:
         self.model = hw
 
         now = datetime.datetime.now()
@@ -86,7 +75,6 @@ class HurryWaveInput:
         self.variables.spinup_meteo = 1
         self.variables.quadruplets = 1
         self.variables.redopt = 1
-        self.variables.redopt = 1
         self.variables.winddrag = "zijlema"
         self.variables.cdcap = 0.0025
 
@@ -108,49 +96,52 @@ class HurryWaveInput:
         self.variables.ospfile = None
         self.variables.wblfile = None
 
-
         self.variables.inputformat = "bin"
         self.variables.outputformat = "net"
 
-        # self.variables.cdnrb = 3
-        # self.variables.cdwnd = [0.0, 28.0, 50.0]
-        # self.variables.cdval = [0.001, 0.0025, 0.0015]
+    def read(self) -> None:
+        """
+        Read ``hurrywave.inp`` from disk and populate :attr:`variables`.
 
-    def read(self):
-        # Reads hurrywave.inp
+        Raises
+        ------
+        FileNotFoundError
+            If ``hurrywave.inp`` does not exist in the model path.
+        """
         file_name = os.path.join(self.model.path, "hurrywave.inp")
-        fid = open(file_name, 'r')
-        lines = fid.readlines()
-        fid.close()
+        with open(file_name, "r") as fid:
+            lines = fid.readlines()
         for line in lines:
-            str = line.split("=")
-            if len(str) == 1:
-                # Empty line
+            parts = line.split("=")
+            if len(parts) == 1:
                 continue
-            name = str[0].strip()
-            val = str[1].strip()
+            name = parts[0].strip()
+            val = parts[1].strip()
             try:
-                # First try to convert to int
                 val = int(val)
             except ValueError:
                 try:
-                    # Now try to convert to float
                     val = float(val)
-                except:
+                except Exception:
                     pass
             if name == "tref":
-                val = datetime.datetime.strptime(val.rstrip(), '%Y%m%d %H%M%S')
+                val = datetime.datetime.strptime(val.rstrip(), "%Y%m%d %H%M%S")
             if name == "tstart":
-                val = datetime.datetime.strptime(val.rstrip(), '%Y%m%d %H%M%S')
+                val = datetime.datetime.strptime(val.rstrip(), "%Y%m%d %H%M%S")
             if name == "tstop":
-                val = datetime.datetime.strptime(val.rstrip(), '%Y%m%d %H%M%S')
+                val = datetime.datetime.strptime(val.rstrip(), "%Y%m%d %H%M%S")
             setattr(self.variables, name, val)
 
-    def write(self):
+    def write(self) -> None:
+        """
+        Write current :attr:`variables` to ``hurrywave.inp``.
 
+        Grid geometry variables are omitted when a quadtree file is active.
+        Boundary spectra or time-series variables are suppressed depending on
+        the active forcing type.
+        """
         file_name = os.path.join(self.model.path, "hurrywave.inp")
         variables = copy.copy(self.variables)
-        # Remove some input variables
 
         if self.model.input.variables.qtrfile is not None:
             variables.x0 = None
@@ -169,45 +160,49 @@ class HurryWaveInput:
         else:
             variables.bspfile = None
 
-        fid = open(file_name, "w")
-        for key, value in variables.__dict__.items():
-            if not value is None:
-                if type(value) == "float":
-                    string = f'{key.ljust(20)} = {float(value)}\n'
-                elif type(value) == "int":
-                    string = f'{key.ljust(20)} = {int(value)}\n'
-                elif type(value) == list:
-                    valstr = ""
-                    for v in value:
-                        valstr += str(v) + " "
-                    string = f'{key.ljust(20)} = {valstr}\n'
-                elif isinstance(value, datetime.date):
-                    dstr = value.strftime("%Y%m%d %H%M%S")
-                    string = f'{key.ljust(20)} = {dstr}\n'
-                else:
-                    string = f'{key.ljust(20)} = {value}\n'
-                fid.write(string)
-        fid.close()
+        with open(file_name, "w") as fid:
+            for key, value in variables.__dict__.items():
+                if value is not None:
+                    if type(value) == "float":
+                        string = f"{key.ljust(20)} = {float(value)}\n"
+                    elif type(value) == "int":
+                        string = f"{key.ljust(20)} = {int(value)}\n"
+                    elif type(value) == list:
+                        valstr = " ".join(str(v) for v in value)
+                        string = f"{key.ljust(20)} = {valstr}\n"
+                    elif isinstance(value, datetime.date):
+                        dstr = value.strftime("%Y%m%d %H%M%S")
+                        string = f"{key.ljust(20)} = {dstr}\n"
+                    else:
+                        string = f"{key.ljust(20)} = {value}\n"
+                    fid.write(string)
 
-    def print(self):
+    def print(self) -> None:
+        """Print all non-None variables to stdout in ``key = value`` format."""
         for key, value in self.variables.__dict__.items():
-            if not value is None:
+            if value is not None:
                 if type(value) == "float":
-                    string = f'{key.ljust(20)} = {float(value)}\n'
+                    string = f"{key.ljust(20)} = {float(value)}\n"
                 elif type(value) == "int":
-                    string = f'{key.ljust(20)} = {int(value)}\n'
+                    string = f"{key.ljust(20)} = {int(value)}\n"
                 elif type(value) == list:
-                    valstr = ""
-                    for v in value:
-                        valstr += str(v) + " "
-                    string = f'{key.ljust(20)} = {valstr}\n'
+                    valstr = " ".join(str(v) for v in value)
+                    string = f"{key.ljust(20)} = {valstr}\n"
                 elif isinstance(value, datetime.date):
                     dstr = value.strftime("%Y%m%d %H%M%S")
-                    string = f'{key.ljust(20)} = {dstr}\n'
+                    string = f"{key.ljust(20)} = {dstr}\n"
                 else:
-                    string = f'{key.ljust(20)} = {value}\n'
+                    string = f"{key.ljust(20)} = {value}\n"
                 print(string)
 
-    def update(self, pars):
+    def update(self, pars: dict) -> None:
+        """
+        Update one or more input variables.
+
+        Parameters
+        ----------
+        pars : dict
+            Mapping of variable name to new value.
+        """
         for key in pars:
             setattr(self.variables, key, pars[key])

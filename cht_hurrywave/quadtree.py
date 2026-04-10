@@ -1,31 +1,50 @@
-import time
+"""
+Quadtree mesh and mask classes for HurryWave.
+
+Provides :class:`QuadtreeMesh`, which builds, stores, refines, and
+reads/writes HurryWave quadtree grids; :class:`QuadtreeMask`, which
+manages the per-cell activity mask; :class:`QuadtreeBathymetry`, a
+datashader helper for bathymetry visualisation; and a set of module-level
+geometry / search utilities.
+"""
+
 import os
-import numpy as np
-import xarray as xr
-import pandas as pd
-from matplotlib import path
-from pyproj import CRS, Transformer
-import shapely
-from scipy.interpolate import RegularGridInterpolator, griddata
-from shapely.geometry import Polygon
-from shapely.prepared import prep
-import xugrid as xu
+import time
 import warnings
-import geopandas as gpd
+
 import datashader as ds
 import datashader.transfer_functions as tf
-from datashader.utils import export_image
+import geopandas as gpd
+import numpy as np
+import pandas as pd
 import rasterio
-from rasterio.transform import from_origin
+import shapely
+import xarray as xr
+import xugrid as xu
+from datashader.utils import export_image
+from pyproj import CRS, Transformer
 from rasterio.enums import Resampling
+from rasterio.transform import from_origin
+from scipy.interpolate import RegularGridInterpolator
+from shapely.geometry import Polygon
+from shapely.prepared import prep
 
 np.warnings = warnings
 
 
 class QuadtreeMesh:
-    def __init__(self):
+    """
+    Quadtree computational mesh for HurryWave.
 
-        # self.xuds = xu.UgridDataset()
+    Stores the cell topology (``n``, ``m``, ``level``), neighbour
+    connectivity (``mu``, ``nu``, ``md``, ``nd``, …), bathymetry (``z``),
+    and the corresponding ``xugrid`` dataset (``xuds``).  Provides methods
+    to build from scratch (including optional refinement), read/write from
+    netCDF, set bathymetry, cut inactive cells, and render datashader
+    overlays.
+    """
+
+    def __init__(self) -> None:
         self.xuds = None
         self.exterior = gpd.GeoDataFrame()
         self.datashader_dataframe = pd.DataFrame()
@@ -34,7 +53,7 @@ class QuadtreeMesh:
         """
         Read a quadtree grid from a file. We cannot manipulate a grid that has been loaded in! I.e. no cut_inactive_cells!
         In order to do this, we'd need to set all the helper arrays.
-        
+
         Parameters
         ----------
         file_name : str
@@ -59,7 +78,7 @@ class QuadtreeMesh:
         # Now set the data arrays that are needed for finding neighbors etc.
         self.level = self.xuds.level.values - 1
         self.n = self.xuds.n.values - 1
-        self.m = self.xuds.m.values -1
+        self.m = self.xuds.m.values - 1
         self.mu = self.xuds.mu.values
         self.mu1 = self.xuds.mu1.values - 1
         self.mu2 = self.xuds.mu2.values - 1
@@ -92,7 +111,7 @@ class QuadtreeMesh:
     def write(self, file_name):
         """
         Write the quadtree grid to a file.
-        
+
         Parameters
         ----------
         file_name : str
@@ -103,11 +122,52 @@ class QuadtreeMesh:
         ds.to_netcdf(file_name)
         ds.close()
 
-    def build(self, x0, y0, nmax, mmax, dx, dy, rotation, crs,
-              refinement_polygons=None,
-              bathymetry_sets=None,
-              bathymetry_database=None):
+    def build(
+        self,
+        x0: float,
+        y0: float,
+        nmax: int,
+        mmax: int,
+        dx: float,
+        dy: float,
+        rotation: float,
+        crs,
+        refinement_polygons=None,
+        bathymetry_sets=None,
+        bathymetry_database=None,
+    ) -> None:
+        """
+        Build the quadtree mesh in-memory.
 
+        Constructs a regular base grid, optionally refines it within the
+        supplied polygons, computes cell-neighbour connectivity, and
+        creates the ``xuds`` xugrid dataset.
+
+        Parameters
+        ----------
+        x0 : float
+            X-coordinate of the grid origin.
+        y0 : float
+            Y-coordinate of the grid origin.
+        nmax : int
+            Number of base-level cells in the n-direction.
+        mmax : int
+            Number of base-level cells in the m-direction.
+        dx : float
+            Base-level cell width.
+        dy : float
+            Base-level cell height.
+        rotation : float
+            Grid rotation angle [degrees].
+        crs : pyproj.CRS
+            Coordinate reference system.
+        refinement_polygons : geopandas.GeoDataFrame or None, optional
+            Polygons driving local cell refinement.
+        bathymetry_sets : list or None, optional
+            Bathymetry datasets used for depth-conditional refinement.
+        bathymetry_database : object or None, optional
+            Bathymetry database providing point queries.
+        """
         self.x0 = x0
         self.y0 = y0
         self.nmax = nmax
@@ -115,8 +175,8 @@ class QuadtreeMesh:
         self.dx = dx
         self.dy = dy
         self.rotation = rotation
-        self.cosrot = np.cos(rotation*np.pi/180)
-        self.sinrot = np.sin(rotation*np.pi/180)
+        self.cosrot = np.cos(rotation * np.pi / 180)
+        self.sinrot = np.sin(rotation * np.pi / 180)
         self.crs = crs
 
         self.nr_cells = 0
@@ -129,11 +189,11 @@ class QuadtreeMesh:
 
         # Make regular grid
         self.get_regular_grid()
- 
-        # Initialize data arrays 
+
+        # Initialize data arrays
         self.initialize_data_arrays()
 
-        # Refine all cells 
+        # Refine all cells
         if self.refinement_polygons is not None:
             self.refine_mesh()
 
@@ -146,7 +206,7 @@ class QuadtreeMesh:
         # Get uv points
         self.get_uv_points()
 
-        # Create xugrid dataset 
+        # Create xugrid dataset
         self.to_xugrid()
 
         self.get_exterior()
@@ -168,16 +228,16 @@ class QuadtreeMesh:
 
     def initialize_data_arrays(self):
         # Set indices of neighbors to -1
-        self.mu  = np.zeros(self.nr_cells, dtype=np.int8)
+        self.mu = np.zeros(self.nr_cells, dtype=np.int8)
         self.mu1 = np.zeros(self.nr_cells, dtype=int) - 1
         self.mu2 = np.zeros(self.nr_cells, dtype=int) - 1
-        self.md  = np.zeros(self.nr_cells, dtype=np.int8)
+        self.md = np.zeros(self.nr_cells, dtype=np.int8)
         self.md1 = np.zeros(self.nr_cells, dtype=int) - 1
         self.md2 = np.zeros(self.nr_cells, dtype=int) - 1
-        self.nu  = np.zeros(self.nr_cells, dtype=np.int8)
+        self.nu = np.zeros(self.nr_cells, dtype=np.int8)
         self.nu1 = np.zeros(self.nr_cells, dtype=int) - 1
         self.nu2 = np.zeros(self.nr_cells, dtype=int) - 1
-        self.nd  = np.zeros(self.nr_cells, dtype=np.int8)
+        self.nd = np.zeros(self.nr_cells, dtype=np.int8)
         self.nd1 = np.zeros(self.nr_cells, dtype=int) - 1
         self.nd2 = np.zeros(self.nr_cells, dtype=int) - 1
 
@@ -192,7 +252,7 @@ class QuadtreeMesh:
         # # Set initial SnapWave mask to zeros
         # self.snapwave_mask = np.zeros(self.nr_cells, dtype=np.int8)
 
-    def refine_mesh(self): 
+    def refine_mesh(self):
         # Loop through rows in gdf and create list of polygons
         # Determine maximum refinement level
 
@@ -218,18 +278,17 @@ class QuadtreeMesh:
             # Refine, reorder, find first cells in level
             self.refine_in_polygon(polygon)
 
-        print("Time elapsed : " + str(time.time() - start) + " s")
+        print(f"Time elapsed : {time.time() - start} s")
 
     def refine_in_polygon(self, polygon):
         # Finds cell to refine and calls refine_cells
 
         # Loop through refinement levels for this polygon
         for ilev in range(polygon["refinement_level"]):
-
             # Refine cells in refinement polygons
             # Compute grid spacing for this level
-            dx = self.dx/2**ilev
-            dy = self.dy/2**ilev
+            dx = self.dx / 2**ilev
+            dy = self.dy / 2**ilev
             nmax = self.nmax * 2**ilev
             mmax = self.mmax * 2**ilev
             # Add buffer of 0.5*dx around polygon
@@ -250,10 +309,14 @@ class QuadtreeMesh:
 
             for ipoint, point in enumerate(polbuf.exterior.coords[:]):
                 # Cell centres
-                polx[ipoint] =   self.cosrot*(point[0] - self.x0) + self.sinrot*(point[1] - self.y0)
-                poly[ipoint] = - self.sinrot*(point[0] - self.x0) + self.cosrot*(point[1] - self.y0)
+                polx[ipoint] = self.cosrot * (point[0] - self.x0) + self.sinrot * (
+                    point[1] - self.y0
+                )
+                poly[ipoint] = -self.sinrot * (point[0] - self.x0) + self.cosrot * (
+                    point[1] - self.y0
+                )
 
-            # Find cells cells in grid that could fall within polbuf 
+            # Find cells cells in grid that could fall within polbuf
             n0 = int(np.floor(np.min(poly) / dy)) - 1
             n1 = int(np.ceil(np.max(poly) / dy)) + 1
             m0 = int(np.floor(np.min(polx) / dx)) - 1
@@ -281,14 +344,14 @@ class QuadtreeMesh:
             nm_in = nmax * mm_in + nn_in
 
             # Find existing cells of this level in nmi array
-            n_level = self.n[self.ifirst[ilev]:self.ilast[ilev] + 1]
-            m_level = self.m[self.ifirst[ilev]:self.ilast[ilev] + 1]
+            n_level = self.n[self.ifirst[ilev] : self.ilast[ilev] + 1]
+            m_level = self.m[self.ifirst[ilev] : self.ilast[ilev] + 1]
             nm_level = m_level * nmax + n_level
 
             # Find indices all cells to be refined
             ind_ref = binary_search(nm_level, nm_in)
 
-            ind_ref = ind_ref[ind_ref>=0]
+            ind_ref = ind_ref[ind_ref >= 0]
 
             # ind_ref = ind_ref[ind_ref < np.size(nm_level)]
             if not np.any(ind_ref):
@@ -297,12 +360,18 @@ class QuadtreeMesh:
             ind_ref += self.ifirst[ilev]
 
             # But only where elevation is between zmin and zmax
-            if self.bathymetry_sets is not None and (polygon["zmin"] > -20000.0 or polygon["zmax"] < 20000.0):
+            if self.bathymetry_sets is not None and (
+                polygon["zmin"] > -20000.0 or polygon["zmax"] < 20000.0
+            ):
                 # self.to_xugrid()
                 # self.compute_cell_center_coordinates()
-                zmin, zmax = self.get_bathymetry_min_max(ind_ref, ilev, self.bathymetry_sets, self.bathymetry_database)
+                zmin, zmax = self.get_bathymetry_min_max(
+                    ind_ref, ilev, self.bathymetry_sets, self.bathymetry_database
+                )
                 # z = self.data["z"][ind_ref]
-                ind_ref = ind_ref[np.logical_and(zmax > polygon["zmin"], zmin < polygon["zmax"] )]
+                ind_ref = ind_ref[
+                    np.logical_and(zmax > polygon["zmin"], zmin < polygon["zmax"])
+                ]
 
             if not np.any(ind_ref):
                 continue
@@ -316,7 +385,7 @@ class QuadtreeMesh:
         if ilev > 0:
             ind_nbr = self.find_lower_level_neighbors(ind_ref, ilev)
         else:
-            ind_nbr = np.empty(0, dtype=int)    
+            ind_nbr = np.empty(0, dtype=int)
 
         # n and m indices of cells to be refined
         n = self.n[ind_ref]
@@ -326,14 +395,14 @@ class QuadtreeMesh:
         nnew = np.zeros(4 * len(ind_ref), dtype=int)
         mnew = np.zeros(4 * len(ind_ref), dtype=int)
         lnew = np.zeros(4 * len(ind_ref), dtype=int) + ilev + 1
-        nnew[0::4] = n*2      # lower left
-        nnew[1::4] = n*2 + 1  # upper left
-        nnew[2::4] = n*2      # lower right
-        nnew[3::4] = n*2 + 1  # upper right
-        mnew[0::4] = m*2      # lower left
-        mnew[1::4] = m*2      # upper left
-        mnew[2::4] = m*2 + 1  # lower right
-        mnew[3::4] = m*2 + 1  # upper right
+        nnew[0::4] = n * 2  # lower left
+        nnew[1::4] = n * 2 + 1  # upper left
+        nnew[2::4] = n * 2  # lower right
+        nnew[3::4] = n * 2 + 1  # upper right
+        mnew[0::4] = m * 2  # lower left
+        mnew[1::4] = m * 2  # upper left
+        mnew[2::4] = m * 2 + 1  # lower right
+        mnew[3::4] = m * 2 + 1  # upper right
         # Add new cells to grid
         self.n = np.append(self.n, nnew)
         self.m = np.append(self.m, mnew)
@@ -341,7 +410,7 @@ class QuadtreeMesh:
         # Remove old cells from grid
         self.n = np.delete(self.n, ind_ref)
         self.m = np.delete(self.m, ind_ref)
-        self.level = np.delete(self.level, ind_ref)        
+        self.level = np.delete(self.level, ind_ref)
 
         self.nr_cells = len(self.n)
         self.initialize_data_arrays()
@@ -359,7 +428,7 @@ class QuadtreeMesh:
             self.refine_cells(ind_nbr, ilev - 1)
 
     def get_neighbors(self):
-        # Get mu, mu1, mu2, nu, nu1, nu2 for all cells   
+        # Get mu, mu1, mu2, nu, nu1, nu2 for all cells
 
         start = time.time()
 
@@ -377,7 +446,6 @@ class QuadtreeMesh:
 
         # Loop over levels
         for ilev in range(self.nr_refinement_levels):
-
             nmax = self.nmax * 2**ilev + 1
 
             # First and last cell in this level
@@ -397,92 +465,94 @@ class QuadtreeMesh:
             m = self.m[i0:i1]
             nm = nm_all[i0:i1]
 
-            # Now look for neighbors 
-                           
+            # Now look for neighbors
+
             # Same level
 
             # Right
             nm_to_find = nm + nmax
             inb = binary_search(nm, nm_to_find)
-            mu1[inb>=0] = inb[inb>=0] + i0
+            mu1[inb >= 0] = inb[inb >= 0] + i0
 
             # Above
             nm_to_find = nm + 1
             inb = binary_search(nm, nm_to_find)
-            nu1[inb>=0] = inb[inb>=0] + i0
+            nu1[inb >= 0] = inb[inb >= 0] + i0
 
             ## Coarser level neighbors
-            if ilev>0:
+            if ilev > 0:
+                nmaxc = (
+                    self.nmax * 2 ** (ilev - 1) + 1
+                )  # Number of cells in coarser level in n direction
 
-                nmaxc = self.nmax * 2**(ilev - 1) + 1   # Number of cells in coarser level in n direction 
+                i0c = self.ifirst[ilev - 1]  # First cell in coarser level
+                i1c = self.ilast[ilev - 1] + 1  # Last cell in coarser level
 
-                i0c = self.ifirst[ilev - 1]  # First cell in coarser level                
-                i1c = self.ilast[ilev - 1] + 1 # Last cell in coarser level
-
-                nmc = nm_all[i0c:i1c] # Coarser level nm indices
-                nc = n // 2 # Coarser level n index of this cells in this level
-                mc = m // 2 # Coarser level m index of this cells in this level 
+                nmc = nm_all[i0c:i1c]  # Coarser level nm indices
+                nc = n // 2  # Coarser level n index of this cells in this level
+                mc = m // 2  # Coarser level m index of this cells in this level
 
                 # Right
                 nmc_to_find = (mc + 1) * nmaxc + nc
                 inb = binary_search(nmc, nmc_to_find)
                 inb[np.where(even(m))[0]] = -1
                 # Set mu and mu1 for inb>=0
-                mu1[inb>=0] = inb[inb>=0] + i0c
-                mu[inb>=0] = -1
+                mu1[inb >= 0] = inb[inb >= 0] + i0c
+                mu[inb >= 0] = -1
 
                 # Above
                 nmc_to_find = mc * nmaxc + nc + 1
                 inb = binary_search(nmc, nmc_to_find)
                 inb[np.where(even(n))[0]] = -1
                 # Set nu and nu1 for inb>=0
-                nu1[inb>=0] = inb[inb>=0] + i0c
-                nu[inb>=0] = -1
+                nu1[inb >= 0] = inb[inb >= 0] + i0c
+                nu[inb >= 0] = -1
 
             # Finer level neighbors
-            if ilev<self.nr_refinement_levels - 1:
-
-                nmaxf = self.nmax * 2**(ilev + 1) + 1 # Number of cells in finer level in n direction
+            if ilev < self.nr_refinement_levels - 1:
+                nmaxf = (
+                    self.nmax * 2 ** (ilev + 1) + 1
+                )  # Number of cells in finer level in n direction
 
                 i0f = self.ifirst[ilev + 1]  # First cell in finer level
-                i1f = self.ilast[ilev + 1] + 1 # Last cell in finer level
-                nmf = nm_all[i0f:i1f] # Finer level nm indices
+                i1f = self.ilast[ilev + 1] + 1  # Last cell in finer level
+                nmf = nm_all[i0f:i1f]  # Finer level nm indices
 
                 # Right
 
                 # Lower row
-                nf = n * 2 # Finer level n index of this cells in this level
-                mf = m * 2 + 1 # Finer level m index of this cells in this level
+                nf = n * 2  # Finer level n index of this cells in this level
+                mf = m * 2 + 1  # Finer level m index of this cells in this level
                 nmf_to_find = (mf + 1) * nmaxf + nf
                 inb = binary_search(nmf, nmf_to_find)
-                mu1[inb>=0] = inb[inb>=0] + i0f
-                mu[inb>=0] = 1
+                mu1[inb >= 0] = inb[inb >= 0] + i0f
+                mu[inb >= 0] = 1
 
                 # Upper row
-                nf = n * 2 + 1# Finer level n index of this cells in this level
-                mf = m * 2 + 1 # Finer level m index of this cells in this level
+                nf = n * 2 + 1  # Finer level n index of this cells in this level
+                mf = m * 2 + 1  # Finer level m index of this cells in this level
                 nmf_to_find = (mf + 1) * nmaxf + nf
                 inb = binary_search(nmf, nmf_to_find)
-                mu2[inb>=0] = inb[inb>=0] + i0f
-                mu[inb>=0] = 1
+                mu2[inb >= 0] = inb[inb >= 0] + i0f
+                mu[inb >= 0] = 1
 
                 # Above
 
                 # Left column
-                nf = n * 2 + 1 # Finer level n index of this cells in this level
-                mf = m * 2 # Finer level m index of this cells in this level
+                nf = n * 2 + 1  # Finer level n index of this cells in this level
+                mf = m * 2  # Finer level m index of this cells in this level
                 nmf_to_find = mf * nmaxf + nf + 1
                 inb = binary_search(nmf, nmf_to_find)
-                nu1[inb>=0] = inb[inb>=0] + i0f
-                nu[inb>=0] = 1
+                nu1[inb >= 0] = inb[inb >= 0] + i0f
+                nu[inb >= 0] = 1
 
                 # Right column
-                nf = n * 2 + 1 # Finer level n index of this cells in this level
-                mf = m * 2 + 1 # Finer level m index of this cells in this level
+                nf = n * 2 + 1  # Finer level n index of this cells in this level
+                mf = m * 2 + 1  # Finer level m index of this cells in this level
                 nmf_to_find = mf * nmaxf + nf + 1
                 inb = binary_search(nmf, nmf_to_find)
-                nu2[inb>=0] = inb[inb>=0] + i0f
-                nu[inb>=0] = 1
+                nu2[inb >= 0] = inb[inb >= 0] + i0f
+                nu[inb >= 0] = 1
 
             # Fill in mu, mu1, mu2, nu, nu1, nu2 for this level
             self.mu[i0:i1] = mu
@@ -492,7 +562,7 @@ class QuadtreeMesh:
             self.nu1[i0:i1] = nu1
             self.nu2[i0:i1] = nu2
 
-        print("Time elapsed : " + str(time.time() - start) + " s")
+        print(f"Time elapsed : {time.time() - start} s")
 
         # Making global model
         # Check if CRS is geographic
@@ -501,7 +571,7 @@ class QuadtreeMesh:
             if self.mmax * self.dx > 359 and self.mmax * self.dx < 361:
                 # We have a global model
                 # Loop through all points
-                for ilev in range(self.nr_refinement_levels):                    
+                for ilev in range(self.nr_refinement_levels):
                     i0 = self.ifirst[ilev]
                     i1 = self.ilast[ilev] + 1
                     nmaxf = self.nmax * 2**ilev + 1
@@ -515,7 +585,7 @@ class QuadtreeMesh:
                         # Now find matching cell on the right
                         # nm index of cell on RHS of grid
                         nmf_to_find = mf * nmaxf + self.n[i]
-                        iright = np.where(nmf==nmf_to_find)[0]
+                        iright = np.where(nmf == nmf_to_find)[0]
                         if iright.size > 0:
                             iright = iright + i0
                             self.mu[iright] = 0
@@ -525,10 +595,10 @@ class QuadtreeMesh:
         print("Setting neighbors left and below ...")
 
         # Right
-       
-        iok1 = np.where(self.mu1>=0)[0]
+
+        iok1 = np.where(self.mu1 >= 0)[0]
         # Same level
-        iok2 = np.where(self.mu==0)[0]
+        iok2 = np.where(self.mu == 0)[0]
         # Indices of cells that have a same level neighbor to the right
         iok = np.intersect1d(iok1, iok2)
         # Indices of neighbors
@@ -537,11 +607,11 @@ class QuadtreeMesh:
         self.md1[imu] = iok
 
         # Coarser
-        iok2 = np.where(self.mu==-1)[0]
+        iok2 = np.where(self.mu == -1)[0]
         # Indices of cells that have a coarse level neighbor to the right
         iok = np.intersect1d(iok1, iok2)
         # Odd
-        iok_odd  = iok[np.where(odd(self.n[iok]))]
+        iok_odd = iok[np.where(odd(self.n[iok]))]
         iok_even = iok[np.where(even(self.n[iok]))]
         imu = self.mu1[iok_odd]
         self.md[imu] = 1
@@ -552,18 +622,18 @@ class QuadtreeMesh:
 
         # Finer
         # Lower
-        iok1 = np.where(self.mu1>=0)[0]
+        iok1 = np.where(self.mu1 >= 0)[0]
         # Same level
-        iok2 = np.where(self.mu==1)[0]
+        iok2 = np.where(self.mu == 1)[0]
         # Indices of cells that have finer level neighbor to the right
         iok = np.intersect1d(iok1, iok2)
         imu = self.mu1[iok]
         self.md[imu] = -1
         self.md1[imu] = iok
         # Upper
-        iok1 = np.where(self.mu2>=0)[0]
+        iok1 = np.where(self.mu2 >= 0)[0]
         # Same level
-        iok2 = np.where(self.mu==1)[0]
+        iok2 = np.where(self.mu == 1)[0]
         # Indices of cells that have finer level neighbor to the right
         iok = np.intersect1d(iok1, iok2)
         imu = self.mu2[iok]
@@ -571,9 +641,9 @@ class QuadtreeMesh:
         self.md1[imu] = iok
 
         # Above
-        iok1 = np.where(self.nu1>=0)[0]
+        iok1 = np.where(self.nu1 >= 0)[0]
         # Same level
-        iok2 = np.where(self.nu==0)[0]
+        iok2 = np.where(self.nu == 0)[0]
         # Indices of cells that have a same level neighbor above
         iok = np.intersect1d(iok1, iok2)
         # Indices of neighbors
@@ -582,11 +652,11 @@ class QuadtreeMesh:
         self.nd1[inu] = iok
 
         # Coarser
-        iok2 = np.where(self.nu==-1)[0]
+        iok2 = np.where(self.nu == -1)[0]
         # Indices of cells that have a coarse level neighbor to the right
         iok = np.intersect1d(iok1, iok2)
         # Odd
-        iok_odd  = iok[np.where(odd(self.m[iok]))]
+        iok_odd = iok[np.where(odd(self.m[iok]))]
         iok_even = iok[np.where(even(self.m[iok]))]
         inu = self.nu1[iok_odd]
         self.nd[inu] = 1
@@ -597,25 +667,25 @@ class QuadtreeMesh:
 
         # Finer
         # Left
-        iok1 = np.where(self.nu1>=0)[0]
+        iok1 = np.where(self.nu1 >= 0)[0]
         # Same level
-        iok2 = np.where(self.nu==1)[0]
+        iok2 = np.where(self.nu == 1)[0]
         # Indices of cells that have finer level neighbor above
         iok = np.intersect1d(iok1, iok2)
         inu = self.nu1[iok]
         self.nd[inu] = -1
         self.nd1[inu] = iok
         # Upper
-        iok1 = np.where(self.nu2>=0)[0]
+        iok1 = np.where(self.nu2 >= 0)[0]
         # Same level
-        iok2 = np.where(self.nu==1)[0]
+        iok2 = np.where(self.nu == 1)[0]
         # Indices of cells that have finer level neighbor to the right
         iok = np.intersect1d(iok1, iok2)
         inu = self.nu2[iok]
         self.nd[inu] = -1
         self.nd1[inu] = iok
 
-        print("Time elapsed : " + str(time.time() - start) + " s")
+        print(f"Time elapsed : {time.time() - start} s")
 
     def get_uv_points(self):
 
@@ -623,38 +693,38 @@ class QuadtreeMesh:
         print("Getting uv points ...")
 
         # Get uv points (do we actually need to do this?)
-        self.uv_index_z_nm  = np.zeros((self.nr_cells*4), dtype=int)
-        self.uv_index_z_nmu = np.zeros((self.nr_cells*4), dtype=int)
-        self.uv_dir         = np.zeros((self.nr_cells*4), dtype=int)
+        self.uv_index_z_nm = np.zeros((self.nr_cells * 4), dtype=int)
+        self.uv_index_z_nmu = np.zeros((self.nr_cells * 4), dtype=int)
+        self.uv_dir = np.zeros((self.nr_cells * 4), dtype=int)
         # Loop through points (SHOULD TRY TO VECTORIZE THIS, but try to keep same order of uv points
         nuv = 0
         for ip in range(self.nr_cells):
-            if self.mu1[ip]>=0:
-                self.uv_index_z_nm[nuv] = ip        
-                self.uv_index_z_nmu[nuv] = self.mu1[ip]     
+            if self.mu1[ip] >= 0:
+                self.uv_index_z_nm[nuv] = ip
+                self.uv_index_z_nmu[nuv] = self.mu1[ip]
                 self.uv_dir[nuv] = 0
                 nuv += 1
-            if self.mu2[ip]>=0:
-                self.uv_index_z_nm[nuv] = ip        
-                self.uv_index_z_nmu[nuv] = self.mu2[ip]     
-                self.uv_dir[nuv] = 0     
+            if self.mu2[ip] >= 0:
+                self.uv_index_z_nm[nuv] = ip
+                self.uv_index_z_nmu[nuv] = self.mu2[ip]
+                self.uv_dir[nuv] = 0
                 nuv += 1
-            if self.nu1[ip]>=0:
-                self.uv_index_z_nm[nuv] = ip        
-                self.uv_index_z_nmu[nuv] = self.nu1[ip]     
-                self.uv_dir[nuv] = 1     
+            if self.nu1[ip] >= 0:
+                self.uv_index_z_nm[nuv] = ip
+                self.uv_index_z_nmu[nuv] = self.nu1[ip]
+                self.uv_dir[nuv] = 1
                 nuv += 1
-            if self.nu2[ip]>=0:
+            if self.nu2[ip] >= 0:
                 self.uv_index_z_nm[nuv] = ip
                 self.uv_index_z_nmu[nuv] = self.nu2[ip]
                 self.uv_dir[nuv] = 1
                 nuv += 1
-        self.uv_index_z_nm  = self.uv_index_z_nm[0 : nuv]
-        self.uv_index_z_nmu = self.uv_index_z_nmu[0 : nuv]
-        self.uv_dir         = self.uv_dir[0 : nuv]
-        self.nr_uv_points   = nuv
+        self.uv_index_z_nm = self.uv_index_z_nm[0:nuv]
+        self.uv_index_z_nmu = self.uv_index_z_nmu[0:nuv]
+        self.uv_dir = self.uv_dir[0:nuv]
+        self.nr_uv_points = nuv
 
-        print("Time elapsed : " + str(time.time() - start) + " s")
+        print(f"Time elapsed : {time.time() - start} s")
 
     def reorder(self):
         # Reorder cells
@@ -675,9 +745,9 @@ class QuadtreeMesh:
                 self.ifirst[ilev] = -1
             else:
                 self.ifirst[ilev] = ifirst[0]
-            #self.ifirst[ilev] = np.where(self.level == ilev)[0][0]
+            # self.ifirst[ilev] = np.where(self.level == ilev)[0][0]
             # Find index of last cell with this level
-            if ilev<self.nr_refinement_levels - 1:
+            if ilev < self.nr_refinement_levels - 1:
                 # self.ilast[ilev] = np.where(self.level == ilev + 1)[0][0] - 1
                 self.ilast[ilev] = np.where(self.level > ilev)[0][0] - 1
             else:
@@ -694,13 +764,13 @@ class QuadtreeMesh:
         m_odd = np.where(odd(m))
         n_even = np.where(even(n))
         m_even = np.where(even(m))
-        
-        ill   = np.intersect1d(n_even, m_even)
-        iul   = np.intersect1d(n_odd, m_even)
-        ilr   = np.intersect1d(n_even, m_odd)
-        iur   = np.intersect1d(n_odd, m_odd)
 
-        n_nbr = np.zeros((2, np.size(n)), dtype=int)        
+        ill = np.intersect1d(n_even, m_even)
+        iul = np.intersect1d(n_odd, m_even)
+        ilr = np.intersect1d(n_even, m_odd)
+        iur = np.intersect1d(n_odd, m_odd)
+
+        n_nbr = np.zeros((2, np.size(n)), dtype=int)
         m_nbr = np.zeros((2, np.size(n)), dtype=int)
 
         # LL
@@ -732,21 +802,21 @@ class QuadtreeMesh:
         n_nbr[1, iur] = n0
         m_nbr[1, iur] = m0 + 1
 
-        nmax = self.nmax * 2**(ilev - 1) + 1
+        nmax = self.nmax * 2 ** (ilev - 1) + 1
 
         n_nbr = n_nbr.flatten()
         m_nbr = m_nbr.flatten()
         nm_nbr = m_nbr * nmax + n_nbr
         nm_nbr = np.sort(np.unique(nm_nbr, return_index=False))
 
-        # Actual cells in the coarser level 
-        n_level = self.n[self.ifirst[ilev - 1]:self.ilast[ilev - 1] + 1]
-        m_level = self.m[self.ifirst[ilev - 1]:self.ilast[ilev - 1] + 1]
+        # Actual cells in the coarser level
+        n_level = self.n[self.ifirst[ilev - 1] : self.ilast[ilev - 1] + 1]
+        m_level = self.m[self.ifirst[ilev - 1] : self.ilast[ilev - 1] + 1]
         nm_level = m_level * nmax + n_level
 
-        # Find  
+        # Find
         ind_nbr = binary_search(nm_level, nm_nbr)
-        ind_nbr = ind_nbr[ind_nbr>=0]
+        ind_nbr = ind_nbr[ind_nbr >= 0]
 
         if np.any(ind_nbr):
             ind_nbr += self.ifirst[ilev - 1]
@@ -757,9 +827,17 @@ class QuadtreeMesh:
         # Compute cell center coordinates
         # Loop through refinement levels
         dx = self.dx / 2**self.level
-        dy = self.dy  /2**self.level
-        self.x = self.x0 + self.cosrot * (self.m + 0.5) * dx - self.sinrot * (self.n + 0.5) * dy
-        self.y = self.y0 + self.sinrot * (self.m + 0.5) * dx + self.cosrot * (self.n + 0.5) * dy
+        dy = self.dy / 2**self.level
+        self.x = (
+            self.x0
+            + self.cosrot * (self.m + 0.5) * dx
+            - self.sinrot * (self.n + 0.5) * dy
+        )
+        self.y = (
+            self.y0
+            + self.sinrot * (self.m + 0.5) * dx
+            + self.cosrot * (self.n + 0.5) * dy
+        )
 
     def get_ugrid2d(self):
 
@@ -769,16 +847,16 @@ class QuadtreeMesh:
         m = self.m
         level = self.level
 
-        nmax = self.nmax * 2**(self.nr_refinement_levels - 1) + 1
+        nmax = self.nmax * 2 ** (self.nr_refinement_levels - 1) + 1
 
-        face_nodes_n = np.full((8,self.nr_cells), -1, dtype=int)
-        face_nodes_m = np.full((8,self.nr_cells), -1, dtype=int)
-        face_nodes_nm = np.full((8,self.nr_cells), -1, dtype=int)
+        face_nodes_n = np.full((8, self.nr_cells), -1, dtype=int)
+        face_nodes_m = np.full((8, self.nr_cells), -1, dtype=int)
+        face_nodes_nm = np.full((8, self.nr_cells), -1, dtype=int)
 
-        # Highest refinement level 
-        ifac = 2**(self.nr_refinement_levels - level - 1)
-        dxf = self.dx / 2**(self.nr_refinement_levels - 1)
-        dyf = self.dy / 2**(self.nr_refinement_levels - 1)
+        # Highest refinement level
+        ifac = 2 ** (self.nr_refinement_levels - level - 1)
+        dxf = self.dx / 2 ** (self.nr_refinement_levels - 1)
+        dyf = self.dy / 2 ** (self.nr_refinement_levels - 1)
 
         face_n = n * ifac
         face_m = m * ifac
@@ -794,44 +872,48 @@ class QuadtreeMesh:
         face_nodes_m[6, :] = face_m
 
         # Find cells with refinement below
-        i = np.where(self.nd==1)
+        i = np.where(self.nd == 1)
         face_nodes_n[1, i] = face_n[i]
-        face_nodes_m[1, i] = face_m[i] + ifac[i]/2
+        face_nodes_m[1, i] = face_m[i] + ifac[i] / 2
         # Find cells with refinement to the right
-        i = np.where(self.mu==1)
-        face_nodes_n[3, i] = face_n[i] + ifac[i]/2
+        i = np.where(self.mu == 1)
+        face_nodes_n[3, i] = face_n[i] + ifac[i] / 2
         face_nodes_m[3, i] = face_m[i] + ifac[i]
         # Find cells with refinement above
-        i = np.where(self.nu==1)
+        i = np.where(self.nu == 1)
         face_nodes_n[5, i] = face_n[i] + ifac[i]
-        face_nodes_m[5, i] = face_m[i] + ifac[i]/2
+        face_nodes_m[5, i] = face_m[i] + ifac[i] / 2
         # Find cells with refinement to the left
-        i = np.where(self.md==1)
-        face_nodes_n[7, i] = face_n[i] + ifac[i]/2
+        i = np.where(self.md == 1)
+        face_nodes_n[7, i] = face_n[i] + ifac[i] / 2
         face_nodes_m[7, i] = face_m[i]
 
         # Flatten
         face_nodes_n = face_nodes_n.transpose().flatten()
         face_nodes_m = face_nodes_m.transpose().flatten()
 
-        # Compute nm value of nodes        
+        # Compute nm value of nodes
         face_nodes_nm = nmax * face_nodes_m + face_nodes_n
         nopoint = max(face_nodes_nm) + 1
         # Set missing points to very high number
-        face_nodes_nm[np.where(face_nodes_n==-1)] = nopoint
+        face_nodes_nm[np.where(face_nodes_n == -1)] = nopoint
 
         # Get the unique nm values
-        xxx, index, irev = np.unique(face_nodes_nm, return_index=True, return_inverse=True)
-        j = np.where(xxx==nopoint)[0][0] # Index of very high number
+        xxx, index, irev = np.unique(
+            face_nodes_nm, return_index=True, return_inverse=True
+        )
+        j = np.where(xxx == nopoint)[0][0]  # Index of very high number
         # irev2 = np.reshape(irev, (self.nr_cells, 8))
         # face_nodes_all = irev2.transpose()
         face_nodes_all = np.reshape(irev, (self.nr_cells, 8)).transpose()
-        face_nodes_all[np.where(face_nodes_all==j)] = -1
+        face_nodes_all[np.where(face_nodes_all == j)] = -1
 
-        face_nodes = np.full(face_nodes_all.shape, -1)  # Create a new array filled with -1
+        face_nodes = np.full(
+            face_nodes_all.shape, -1
+        )  # Create a new array filled with -1
         for i in range(face_nodes.shape[1]):
-            idx = np.where(face_nodes_all[:,i] != -1)[0]
-            face_nodes[:len(idx), i] = face_nodes_all[idx, i]  
+            idx = np.where(face_nodes_all[:, i] != -1)[0]
+            face_nodes[: len(idx), i] = face_nodes_all[idx, i]
 
         # Now get rid of all the rows where all values are -1
         # Create a mask where each row is True if not all elements in the row are -1
@@ -842,8 +924,8 @@ class QuadtreeMesh:
 
         node_n = face_nodes_n[index[:j]]
         node_m = face_nodes_m[index[:j]]
-        node_x = self.x0 + self.cosrot*(node_m*dxf) - self.sinrot*(node_n*dyf)
-        node_y = self.y0 + self.sinrot*(node_m*dxf) + self.cosrot*(node_n*dyf)
+        node_x = self.x0 + self.cosrot * (node_m * dxf) - self.sinrot * (node_n * dyf)
+        node_y = self.y0 + self.sinrot * (node_m * dxf) + self.cosrot * (node_n * dyf)
 
         toc = time.perf_counter()
 
@@ -860,7 +942,7 @@ class QuadtreeMesh:
         ugrid2d.set_crs(self.crs)
 
         # Set datashader df to None
-        self.df = None 
+        self.df = None
 
         toc = time.perf_counter()
 
@@ -868,7 +950,7 @@ class QuadtreeMesh:
 
         return ugrid2d
 
-    def to_xugrid(self):    
+    def to_xugrid(self):
 
         print("Making XUGrid ...")
 
@@ -879,45 +961,81 @@ class QuadtreeMesh:
         self.xuds = xu.UgridDataset(grids=ugrid2d)
 
         # Add attributes
-        attrs = {"x0": self.x0,
-                 "y0": self.y0,
-                 "nmax": self.nmax,
-                 "mmax": self.mmax,
-                 "dx": self.dx,
-                 "dy": self.dy,
-                 "rotation": self.rotation,
-                 "nr_levels": self.nr_refinement_levels}
+        attrs = {
+            "x0": self.x0,
+            "y0": self.y0,
+            "nmax": self.nmax,
+            "mmax": self.mmax,
+            "dx": self.dx,
+            "dy": self.dy,
+            "rotation": self.rotation,
+            "nr_levels": self.nr_refinement_levels,
+        }
         self.xuds.attrs = attrs
 
         # Now add the data arrays
 
         self.xuds["crs"] = self.crs.to_epsg()
         self.xuds["crs"].attrs = self.crs.to_cf()
-        self.xuds["level"] = xu.UgridDataArray(xr.DataArray(data=self.level + 1, dims=[ugrid2d.face_dimension]), ugrid2d)
-        self.xuds["z"] = xu.UgridDataArray(xr.DataArray(data=self.z, dims=[ugrid2d.face_dimension]), ugrid2d)
+        self.xuds["level"] = xu.UgridDataArray(
+            xr.DataArray(data=self.level + 1, dims=[ugrid2d.face_dimension]), ugrid2d
+        )
+        self.xuds["z"] = xu.UgridDataArray(
+            xr.DataArray(data=self.z, dims=[ugrid2d.face_dimension]), ugrid2d
+        )
         # self.xuds["mask"] = xu.UgridDataArray(xr.DataArray(data=self.mask, dims=[ugrid2d.face_dimension]), ugrid2d)
         # self.xuds["snapwave_mask"] = xu.UgridDataArray(xr.DataArray(data=self.snapwave_mask, dims=[ugrid2d.face_dimension]), ugrid2d)
 
-        self.xuds["n"] = xu.UgridDataArray(xr.DataArray(data=self.n + 1, dims=[ugrid2d.face_dimension]), ugrid2d)
-        self.xuds["m"] = xu.UgridDataArray(xr.DataArray(data=self.m + 1, dims=[ugrid2d.face_dimension]), ugrid2d)
+        self.xuds["n"] = xu.UgridDataArray(
+            xr.DataArray(data=self.n + 1, dims=[ugrid2d.face_dimension]), ugrid2d
+        )
+        self.xuds["m"] = xu.UgridDataArray(
+            xr.DataArray(data=self.m + 1, dims=[ugrid2d.face_dimension]), ugrid2d
+        )
 
-        self.xuds["mu"]  = xu.UgridDataArray(xr.DataArray(data=self.mu, dims=[ugrid2d.face_dimension]), ugrid2d)
-        self.xuds["mu1"] = xu.UgridDataArray(xr.DataArray(data=self.mu1 + 1, dims=[ugrid2d.face_dimension]), ugrid2d)
-        self.xuds["mu2"] = xu.UgridDataArray(xr.DataArray(data=self.mu2 + 1, dims=[ugrid2d.face_dimension]), ugrid2d)
-        self.xuds["md"]  = xu.UgridDataArray(xr.DataArray(data=self.md, dims=[ugrid2d.face_dimension]), ugrid2d)
-        self.xuds["md1"] = xu.UgridDataArray(xr.DataArray(data=self.md1 + 1, dims=[ugrid2d.face_dimension]), ugrid2d)
-        self.xuds["md2"] = xu.UgridDataArray(xr.DataArray(data=self.md2 + 1, dims=[ugrid2d.face_dimension]), ugrid2d)
+        self.xuds["mu"] = xu.UgridDataArray(
+            xr.DataArray(data=self.mu, dims=[ugrid2d.face_dimension]), ugrid2d
+        )
+        self.xuds["mu1"] = xu.UgridDataArray(
+            xr.DataArray(data=self.mu1 + 1, dims=[ugrid2d.face_dimension]), ugrid2d
+        )
+        self.xuds["mu2"] = xu.UgridDataArray(
+            xr.DataArray(data=self.mu2 + 1, dims=[ugrid2d.face_dimension]), ugrid2d
+        )
+        self.xuds["md"] = xu.UgridDataArray(
+            xr.DataArray(data=self.md, dims=[ugrid2d.face_dimension]), ugrid2d
+        )
+        self.xuds["md1"] = xu.UgridDataArray(
+            xr.DataArray(data=self.md1 + 1, dims=[ugrid2d.face_dimension]), ugrid2d
+        )
+        self.xuds["md2"] = xu.UgridDataArray(
+            xr.DataArray(data=self.md2 + 1, dims=[ugrid2d.face_dimension]), ugrid2d
+        )
 
-        self.xuds["nu"]  = xu.UgridDataArray(xr.DataArray(data=self.nu, dims=[ugrid2d.face_dimension]), ugrid2d)
-        self.xuds["nu1"] = xu.UgridDataArray(xr.DataArray(data=self.nu1 + 1, dims=[ugrid2d.face_dimension]), ugrid2d)
-        self.xuds["nu2"] = xu.UgridDataArray(xr.DataArray(data=self.nu2 + 1, dims=[ugrid2d.face_dimension]), ugrid2d)
-        self.xuds["nd"]  = xu.UgridDataArray(xr.DataArray(data=self.nd, dims=[ugrid2d.face_dimension]), ugrid2d)
-        self.xuds["nd1"] = xu.UgridDataArray(xr.DataArray(data=self.nd1 + 1, dims=[ugrid2d.face_dimension]), ugrid2d)
-        self.xuds["nd2"] = xu.UgridDataArray(xr.DataArray(data=self.nd2 + 1, dims=[ugrid2d.face_dimension]), ugrid2d)
+        self.xuds["nu"] = xu.UgridDataArray(
+            xr.DataArray(data=self.nu, dims=[ugrid2d.face_dimension]), ugrid2d
+        )
+        self.xuds["nu1"] = xu.UgridDataArray(
+            xr.DataArray(data=self.nu1 + 1, dims=[ugrid2d.face_dimension]), ugrid2d
+        )
+        self.xuds["nu2"] = xu.UgridDataArray(
+            xr.DataArray(data=self.nu2 + 1, dims=[ugrid2d.face_dimension]), ugrid2d
+        )
+        self.xuds["nd"] = xu.UgridDataArray(
+            xr.DataArray(data=self.nd, dims=[ugrid2d.face_dimension]), ugrid2d
+        )
+        self.xuds["nd1"] = xu.UgridDataArray(
+            xr.DataArray(data=self.nd1 + 1, dims=[ugrid2d.face_dimension]), ugrid2d
+        )
+        self.xuds["nd2"] = xu.UgridDataArray(
+            xr.DataArray(data=self.nd2 + 1, dims=[ugrid2d.face_dimension]), ugrid2d
+        )
 
-    def get_bathymetry_min_max(self, ind_ref, ilev, bathymetry_sets, bathymetry_database=None, quiet=True):
-        """"Used to determine min and max bathymetry of a cell (used for refinement)"""
-        
+    def get_bathymetry_min_max(
+        self, ind_ref, ilev, bathymetry_sets, bathymetry_database=None, quiet=True
+    ):
+        """ "Used to determine min and max bathymetry of a cell (used for refinement)"""
+
         if bathymetry_database is None:
             print("Error! No bathymetry database provided!")
             return
@@ -927,8 +1045,16 @@ class QuadtreeMesh:
 
         dx = self.dx / 2**ilev
         dy = self.dy / 2**ilev
-        xz = self.x0 + self.cosrot * (self.m[ind_ref] + 0.5) * dx - self.sinrot * (self.n[ind_ref] + 0.5) * dy
-        yz = self.y0 + self.sinrot * (self.m[ind_ref] + 0.5) * dx + self.cosrot * (self.n[ind_ref] + 0.5) * dy
+        xz = (
+            self.x0
+            + self.cosrot * (self.m[ind_ref] + 0.5) * dx
+            - self.sinrot * (self.n[ind_ref] + 0.5) * dy
+        )
+        yz = (
+            self.y0
+            + self.sinrot * (self.m[ind_ref] + 0.5) * dx
+            + self.cosrot * (self.n[ind_ref] + 0.5) * dy
+        )
 
         # Compute the four corner coordinates of the cell, given that the cosine of the rotation is cosrot and the sine is sinrot and the cell center is xz, yz
         xcor = np.zeros((4, np.size(xz)))
@@ -940,24 +1066,22 @@ class QuadtreeMesh:
         xcor[2, :] = xz + 0.5 * self.cosrot * dx + 0.5 * self.sinrot * dy
         ycor[2, :] = yz + 0.5 * self.sinrot * dx - 0.5 * self.cosrot * dy
         xcor[3, :] = xz - 0.5 * self.cosrot * dx + 0.5 * self.sinrot * dy
-        ycor[3, :] = yz - 0.5 * self.sinrot * dx - 0.5 * self.cosrot * dy 
+        ycor[3, :] = yz - 0.5 * self.sinrot * dx - 0.5 * self.cosrot * dy
 
         if self.crs.is_geographic:
             dx = dx * 111000.0
 
         # Now loop through the 4 corners and get the minimum and maximum bathymetry
         for i in range(4):
-            zgl = bathymetry_database.get_bathymetry_on_points(xcor[i, :],
-                                                               ycor[i, :],
-                                                               dx,
-                                                               self.crs,
-                                                               bathymetry_sets)
+            zgl = bathymetry_database.get_bathymetry_on_points(
+                xcor[i, :], ycor[i, :], dx, self.crs, bathymetry_sets
+            )
             if i == 0:
                 zmin = zgl
                 zmax = zgl
             else:
                 zmin = np.minimum(zmin, zgl)
-                zmax = np.maximum(zmax, zgl)    
+                zmax = np.maximum(zmax, zgl)
 
         return zmin, zmax
 
@@ -973,7 +1097,7 @@ class QuadtreeMesh:
         # Why?
         # self.crs = CRS.from_epsg(self.xuds["crs"].values)
 
-        # In the xugrid data, the indices are 1-based, so we need to subtract 1 
+        # In the xugrid data, the indices are 1-based, so we need to subtract 1
         n = self.xuds["n"].values[:] - 1
         m = self.xuds["m"].values[:] - 1
         level = self.xuds["level"].values[:] - 1
@@ -985,7 +1109,7 @@ class QuadtreeMesh:
             if mask_name in self.xuds:
                 mask_sum += self.xuds[mask_name].values[:]
 
-        indx = np.where((mask_sum)>0)
+        indx = np.where((mask_sum) > 0)
 
         self.nr_refinement_levels = self.xuds.attrs["nr_levels"]
         self.nmax = self.xuds.attrs["nmax"]
@@ -998,10 +1122,10 @@ class QuadtreeMesh:
         self.dx = self.xuds.attrs["dx"]
         self.dy = self.xuds.attrs["dy"]
         self.nr_cells = np.size(indx)
-        self.n        = n[indx]
-        self.m        = m[indx]
-        self.level    = level[indx]
-        self.z        = z[indx]
+        self.n = n[indx]
+        self.m = m[indx]
+        self.level = level[indx]
+        self.z = z[indx]
 
         mask_arrays = {}
         for mask_name in mask_list:
@@ -1009,27 +1133,32 @@ class QuadtreeMesh:
                 mask_arrays[mask_name] = self.xuds[mask_name].values[indx]
 
         # Set indices of neighbors to -1
-        self.mu  = np.zeros(self.nr_cells, dtype=np.int8)
+        self.mu = np.zeros(self.nr_cells, dtype=np.int8)
         self.mu1 = np.zeros(self.nr_cells, dtype=int) - 1
         self.mu2 = np.zeros(self.nr_cells, dtype=int) - 1
-        self.md  = np.zeros(self.nr_cells, dtype=np.int8)
+        self.md = np.zeros(self.nr_cells, dtype=np.int8)
         self.md1 = np.zeros(self.nr_cells, dtype=int) - 1
         self.md2 = np.zeros(self.nr_cells, dtype=int) - 1
-        self.nu  = np.zeros(self.nr_cells, dtype=np.int8)
+        self.nu = np.zeros(self.nr_cells, dtype=np.int8)
         self.nu1 = np.zeros(self.nr_cells, dtype=int) - 1
         self.nu2 = np.zeros(self.nr_cells, dtype=int) - 1
-        self.nd  = np.zeros(self.nr_cells, dtype=np.int8)
+        self.nd = np.zeros(self.nr_cells, dtype=np.int8)
         self.nd1 = np.zeros(self.nr_cells, dtype=int) - 1
         self.nd2 = np.zeros(self.nr_cells, dtype=int) - 1
 
         self.find_first_cells_in_level()
-        self.get_neighbors() 
+        self.get_neighbors()
         self.get_uv_points()
         self.to_xugrid()
 
         # And set back the mask arrays (surely there must be a more elegant way to do this)
         for mask_name in mask_list:
-            self.xuds[mask_name] = xu.UgridDataArray(xr.DataArray(data=mask_arrays[mask_name], dims=[self.xuds.grid.face_dimension]), self.xuds.grid)
+            self.xuds[mask_name] = xu.UgridDataArray(
+                xr.DataArray(
+                    data=mask_arrays[mask_name], dims=[self.xuds.grid.face_dimension]
+                ),
+                self.xuds.grid,
+            )
 
     def interpolate_bathymetry(self, x, y, z, method="linear"):
         """x, y, and z are numpy arrays with coordinates and bathymetry values"""
@@ -1037,13 +1166,22 @@ class QuadtreeMesh:
         xz = xy[:, 0]
         yz = xy[:, 1]
         zz = interp2(x, y, z, xz, yz, method=method)
-        self.xuds["z"] = xu.UgridDataArray(xr.DataArray(data=zz, dims=[self.xuds.grid.face_dimension]), self.xuds.grid)
+        self.xuds["z"] = xu.UgridDataArray(
+            xr.DataArray(data=zz, dims=[self.xuds.grid.face_dimension]), self.xuds.grid
+        )
 
     def set_uniform_bathymetry(self, zb):
         self.xuds["z"][:] = zb
 
-    def set_bathymetry(self, bathymetry_sets, bathymetry_database=None, zmin=-1.0e9, zmax=1.0e9, quiet=True):
-        
+    def set_bathymetry(
+        self,
+        bathymetry_sets,
+        bathymetry_database=None,
+        zmin=-1.0e9,
+        zmax=1.0e9,
+        quiet=True,
+    ):
+
         if bathymetry_database is None:
             print("Error! No bathymetry database provided!")
             return
@@ -1066,7 +1204,7 @@ class QuadtreeMesh:
         # This is also done when the grid is built, but that information is not stored
         ifirst = np.zeros(nlev, dtype=int)
         ilast = np.zeros(nlev, dtype=int)
-        level = self.xuds["level"].values[:] - 1 # 0-based
+        level = self.xuds["level"].values[:] - 1  # 0-based
         for ilev in range(0, nlev):
             # Find index of first cell with this level
             ifirst[ilev] = np.where(level == ilev)[0][0]
@@ -1078,62 +1216,63 @@ class QuadtreeMesh:
 
         # Loop through all levels
         for ilev in range(nlev):
-
             if not quiet:
-                print("Processing bathymetry level " + str(ilev + 1) + " of " + str(nlev) + " ...")
+                print(f"Processing bathymetry level {ilev + 1} of {nlev} ...")
 
-            # First and last cell indices in this level            
+            # First and last cell indices in this level
             i0 = ifirst[ilev]
             i1 = ilast[ilev]
-            
+
             # Make blocks of cells in this level only
             cell_indices_in_level = np.arange(i0, i1 + 1, dtype=int)
-                  
-            xz  = xy[cell_indices_in_level, 0]
-            yz  = xy[cell_indices_in_level, 1]
+
+            xz = xy[cell_indices_in_level, 0]
+            yz = xy[cell_indices_in_level, 1]
             dxmin = dx / 2**ilev
 
             if self.crs.is_geographic:
                 dxmin = dxmin * 111000.0
 
-            zgl = bathymetry_database.get_bathymetry_on_points(xz,
-                                                               yz,
-                                                               dxmin,
-                                                               self.crs,
-                                                               bathymetry_sets)
-            
+            zgl = bathymetry_database.get_bathymetry_on_points(
+                xz, yz, dxmin, self.crs, bathymetry_sets
+            )
+
             # Limit zgl to zmin and zmax
             zgl = np.maximum(zgl, zmin)
             zgl = np.minimum(zgl, zmax)
 
             zz[cell_indices_in_level] = zgl
 
-        self.xuds["z"] = xu.UgridDataArray(xr.DataArray(data=zz, dims=[self.xuds.grid.face_dimension]), self.xuds.grid)
+        self.xuds["z"] = xu.UgridDataArray(
+            xr.DataArray(data=zz, dims=[self.xuds.grid.face_dimension]), self.xuds.grid
+        )
 
-    def set_bathymetry_mean_wet(self,
-              bathymetry_sets,
-              bathymetry_database=None,
-              nr_subgrid_pixels=20,
-              threshold_level=0.0,
-              quiet=True,
-              progress_bar=None):  
-       
-        refi        = nr_subgrid_pixels
-        nrmax       = 2000
+    def set_bathymetry_mean_wet(
+        self,
+        bathymetry_sets,
+        bathymetry_database=None,
+        nr_subgrid_pixels=20,
+        threshold_level=0.0,
+        quiet=True,
+        progress_bar=None,
+    ):
+
+        refi = nr_subgrid_pixels
+        nrmax = 2000
 
         # Get some information from the grid
-        nr_cells    = self.nr_cells
+        nr_cells = self.nr_cells
         nr_ref_levs = self.nr_refinement_levels
-        x0          = self.xuds.attrs["x0"]
-        y0          = self.xuds.attrs["y0"]
-        dx          = self.xuds.attrs["dx"]
-        dy          = self.xuds.attrs["dy"]
-        rot         = self.xuds.attrs["rotation"]
-        cosrot      = np.cos(np.radians(rot))
-        sinrot      = np.sin(np.radians(rot))
-        level       = self.xuds["level"].values[:] - 1
-        n           = self.xuds["n"].values[:] - 1
-        m           = self.xuds["m"].values[:] - 1
+        x0 = self.xuds.attrs["x0"]
+        y0 = self.xuds.attrs["y0"]
+        dx = self.xuds.attrs["dx"]
+        dy = self.xuds.attrs["dy"]
+        rot = self.xuds.attrs["rotation"]
+        cosrot = np.cos(np.radians(rot))
+        sinrot = np.sin(np.radians(rot))
+        level = self.xuds["level"].values[:] - 1
+        n = self.xuds["n"].values[:] - 1
+        m = self.xuds["m"].values[:] - 1
 
         counter = 0
 
@@ -1154,7 +1293,6 @@ class QuadtreeMesh:
 
         # Loop through all levels
         for ilev in range(nr_ref_levs):
-
             # Make blocks off cells in this level only
             cell_indices_in_level = np.arange(ifirst[ilev], ilast[ilev] + 1, dtype=int)
             nr_cells_in_level = np.size(cell_indices_in_level)
@@ -1173,24 +1311,25 @@ class QuadtreeMesh:
 
             dxi = dx / 2**ilev  # cell size at this level
             dyi = dy / 2**ilev  # cell size at this level
-            dxp = dxi / refi    # size of subgrid pixel
-            dyp = dyi / refi    # size of subgrid pixel
+            dxp = dxi / refi  # size of subgrid pixel
+            dyp = dyi / refi  # size of subgrid pixel
 
-            nrcb = int(np.floor(nrmax / refi))         # nr of regular cells in a block
+            nrcb = int(np.floor(nrmax / refi))  # nr of regular cells in a block
             nrbn = int(np.ceil((n1 - n0 + 1) / nrcb))  # nr of blocks in n direction
             nrbm = int(np.ceil((m1 - m0 + 1) / nrcb))  # nr of blocks in m direction
 
             if progress_bar:
-                progress_bar.set_text("               Computing bathymetry ...                ")
+                progress_bar.set_text(
+                    "               Computing bathymetry ...                "
+                )
                 progress_bar.set_minimum(0)
                 progress_bar.set_maximum(nrbm * nrbn)
                 progress_bar.set_value(0)
-                                
+
             ## Loop through blocks
             ib = 0
             for ii in range(nrbm):
                 for jj in range(nrbn):
-
                     if progress_bar:
                         # perc_ready = int(100*ib/(nrbn*nrbm))
                         progress_bar.set_value(ib)
@@ -1200,14 +1339,20 @@ class QuadtreeMesh:
                     ib += 1
 
                     if not quiet:
-                        print("--------------------------------------------------------------")
-                        print("Processing block " + str(ib) + " of " + str(nrbn*nrbm) + " ...")
+                        print(
+                            "--------------------------------------------------------------"
+                        )
+                        print(f"Processing block {ib} of {nrbn * nrbm} ...")
                         print("Getting bathymetry data ...")
 
-                    bn0 = n0  + jj*nrcb               # Index of first n in block
-                    bn1 = min(bn0 + nrcb - 1, n1) + 1 # Index of last n in block (cut off excess above, but add extra cell to compute u and v in the last row)
-                    bm0 = m0  + ii*nrcb               # Index of first m in block
-                    bm1 = min(bm0 + nrcb - 1, m1) + 1 # Index of last m in block (cut off excess to the right, but add extra cell to compute u and v in the last column)
+                    bn0 = n0 + jj * nrcb  # Index of first n in block
+                    bn1 = (
+                        min(bn0 + nrcb - 1, n1) + 1
+                    )  # Index of last n in block (cut off excess above, but add extra cell to compute u and v in the last row)
+                    bm0 = m0 + ii * nrcb  # Index of first m in block
+                    bm1 = (
+                        min(bm0 + nrcb - 1, m1) + 1
+                    )  # Index of last m in block (cut off excess to the right, but add extra cell to compute u and v in the last column)
 
                     # Now build the pixel matrix
                     x00 = 0.5 * dxp + bm0 * refi * dyp
@@ -1225,7 +1370,7 @@ class QuadtreeMesh:
 
                     # Clear temporary variables
                     del x0v, y0v, xg0, yg0
-                    
+
                     # Initialize depth of subgrid at NaN
                     zg = np.full(np.shape(xg), np.nan)
 
@@ -1233,10 +1378,10 @@ class QuadtreeMesh:
                     # Start using HydroMT for this at some point
                     if bathymetry_database is not None:
                         # Getting bathymetry array zg from database
-                        try: 
-                            zg = bathymetry_database.get_bathymetry_on_grid(xg, yg,
-                                                                            self.crs,
-                                                                            bathymetry_sets)
+                        try:
+                            zg = bathymetry_database.get_bathymetry_on_grid(
+                                xg, yg, self.crs, bathymetry_sets
+                            )
                         except Exception as e:
                             print(e)
                             pass
@@ -1264,7 +1409,7 @@ class QuadtreeMesh:
                             index_cells_in_block[nr_cells_in_block] = indx
                             nr_cells_in_block += 1
 
-                    if nr_cells_in_block == 0: 
+                    if nr_cells_in_block == 0:
                         # No cells in this block
                         continue
 
@@ -1273,12 +1418,11 @@ class QuadtreeMesh:
                     # Should really parallelize this loop !
 
                     for index in index_cells_in_block:
-
                         # Get elevation in cells
-                        nn  = (n[index] - bn0) * refi
-                        mm  = (m[index] - bm0) * refi
+                        nn = (n[index] - bn0) * refi
+                        mm = (m[index] - bm0) * refi
                         zgc = zg[nn : nn + refi, mm : mm + refi]
-    
+
                         # if np.nanmax(zgc) < threshold_level:
                         #     # Check if any cells above threshold for island
                         #     continue
@@ -1286,7 +1430,7 @@ class QuadtreeMesh:
                         counter += 1
 
                         # Compute the mean depth of wet pixels
-                        indwet = np.where(zgc <= threshold_level)                        
+                        indwet = np.where(zgc <= threshold_level)
                         if len(indwet[0]) > 0:
                             zbmean = np.nanmean(zgc[indwet])
                         else:
@@ -1307,11 +1451,13 @@ class QuadtreeMesh:
         geom_list = []
         for iline, line in polyline.iterrows():
             geom = line["geometry"]
-            if geom.geom_type == 'LineString':
+            if geom.geom_type == "LineString":
                 geom_list.append(geom)
-        gdf = gpd.GeoDataFrame({'geometry': geom_list})    
+        gdf = gpd.GeoDataFrame({"geometry": geom_list})
         print("Snapping to grid ...")
-        snapped_uds, snapped_gdf = xu.snap_to_grid(gdf, self.xuds.grid, max_snap_distance=max_snap_distance)
+        snapped_uds, snapped_gdf = xu.snap_to_grid(
+            gdf, self.xuds.grid, max_snap_distance=max_snap_distance
+        )
         print("Snapping to grid done.")
         snapped_gdf = snapped_gdf.set_crs(self.crs)
         return snapped_gdf
@@ -1320,23 +1466,27 @@ class QuadtreeMesh:
         # if self.data is None:
         #     return None, None
         xy = self.xuds.grid.face_coordinates
-        return xy[:, 0], xy[:,1]
+        return xy[:, 0], xy[:, 1]
 
     def get_exterior(self):
         try:
-            indx = self.xuds.grid.edge_node_connectivity[self.xuds.grid.exterior_edges, :]
+            indx = self.xuds.grid.edge_node_connectivity[
+                self.xuds.grid.exterior_edges, :
+            ]
             x = self.xuds.grid.node_x[indx]
             y = self.xuds.grid.node_y[indx]
             # Make linestrings from numpy arrays x and y
-            linestrings = [shapely.LineString(np.column_stack((x[i], y[i]))) for i in range(len(x))]
+            linestrings = [
+                shapely.LineString(np.column_stack((x[i], y[i]))) for i in range(len(x))
+            ]
             # Merge linestrings
             merged = shapely.ops.linemerge(linestrings)
             # Merge polygons
             polygons = shapely.ops.polygonize(merged)
-    #        polygons = shapely.simplify(polygons, self.dx)
+            #        polygons = shapely.simplify(polygons, self.dx)
             self.exterior = gpd.GeoDataFrame(geometry=list(polygons), crs=self.crs)
-        except:
-            self.exterior = gpd.GeoDataFrame()    
+        except Exception:
+            self.exterior = gpd.GeoDataFrame()
 
     def bounds(self, crs=None, buffer=0.0):
         """Returns list with bounds (lon1, lat1, lon2, lat2), with buffer (default 0.0) and in any CRS (default : same CRS as model)"""
@@ -1363,9 +1513,7 @@ class QuadtreeMesh:
             if self.datashader_dataframe.empty:
                 self.get_datashader_dataframe()
 
-            transformer = Transformer.from_crs(4326,
-                                        3857,
-                                        always_xy=True)
+            transformer = Transformer.from_crs(4326, 3857, always_xy=True)
             xl0, yl0 = transformer.transform(xlim[0], ylim[0])
             xl1, yl1 = transformer.transform(xlim[1], ylim[1])
             if xl0 > xl1:
@@ -1374,11 +1522,12 @@ class QuadtreeMesh:
             ylim = [yl0, yl1]
             ratio = (ylim[1] - ylim[0]) / (xlim[1] - xlim[0])
             height = int(width * ratio)
-            cvs = ds.Canvas(x_range=xlim, y_range=ylim, plot_height=height, plot_width=width)
-            agg = cvs.line(self.datashader_dataframe,
-                           x=['x1', 'x2'],
-                           y=['y1', 'y2'],
-                           axis=1)
+            cvs = ds.Canvas(
+                x_range=xlim, y_range=ylim, plot_height=height, plot_width=width
+            )
+            agg = cvs.line(
+                self.datashader_dataframe, x=["x1", "x2"], y=["y1", "y2"], axis=1
+            )
             img = tf.shade(agg)
             path = os.path.dirname(file_name)
             if not path:
@@ -1387,24 +1536,22 @@ class QuadtreeMesh:
             name = os.path.splitext(name)[0]
             export_image(img, name, export_path=path)
             return True
-        except Exception as e:
+        except Exception:
             return False
 
     def get_datashader_dataframe(self):
         """Creates a dataframe with line elements for datashader"""
         # Create a dataframe with line elements
-        x1 = self.xuds.grid.edge_node_coordinates[:,0,0]
-        x2 = self.xuds.grid.edge_node_coordinates[:,1,0]
-        y1 = self.xuds.grid.edge_node_coordinates[:,0,1]
-        y2 = self.xuds.grid.edge_node_coordinates[:,1,1]
+        x1 = self.xuds.grid.edge_node_coordinates[:, 0, 0]
+        x2 = self.xuds.grid.edge_node_coordinates[:, 1, 0]
+        y1 = self.xuds.grid.edge_node_coordinates[:, 0, 1]
+        y2 = self.xuds.grid.edge_node_coordinates[:, 1, 1]
         # Check if grid crosses the dateline
         cross_dateline = False
         if self.crs.is_geographic:
             if np.max(x1) > 180.0 or np.max(x2) > 180.0:
                 cross_dateline = True
-        transformer = Transformer.from_crs(self.crs,
-                                            3857,
-                                            always_xy=True)
+        transformer = Transformer.from_crs(self.crs, 3857, always_xy=True)
         x1, y1 = transformer.transform(x1, y1)
         x2, y2 = transformer.transform(x2, y2)
         if cross_dateline:
@@ -1414,7 +1561,7 @@ class QuadtreeMesh:
 
     def clear_datashader_dataframe(self):
         """Clears the datashader dataframe"""
-        self.datashader_dataframe = pd.DataFrame() 
+        self.datashader_dataframe = pd.DataFrame()
 
     def get_indices_at_points(self, x, y):
 
@@ -1450,10 +1597,12 @@ class QuadtreeMesh:
             ifirst = np.zeros(nr_refinement_levels, dtype=int)
             for ilev in range(0, nr_refinement_levels):
                 # Find index of first cell with this level
-                ifirst[ilev] = np.where(self.xuds["level"].to_numpy()[:] == ilev + 1)[0][0]
+                ifirst[ilev] = np.where(self.xuds["level"].to_numpy()[:] == ilev + 1)[
+                    0
+                ][0]
             self.ifirst = ifirst
 
-        ifirst = self.ifirst    
+        ifirst = self.ifirst
 
         i0_lev = []
         i1_lev = []
@@ -1462,7 +1611,6 @@ class QuadtreeMesh:
         nm_lev = []
 
         for level in range(nr_refinement_levels):
-
             i0 = ifirst[level]
             if level < nr_refinement_levels - 1:
                 i1 = ifirst[level + 1]
@@ -1516,12 +1664,9 @@ class QuadtreeMesh:
 
         return indx
 
-    def make_topobathy_cog(self,
-                           filename,
-                           bathymetry_sets,
-                           bathymetry_database=None,
-                           dx=10.0):
-        
+    def make_topobathy_cog(
+        self, filename, bathymetry_sets, bathymetry_database=None, dx=10.0
+    ):
         """Make a COG file with topobathy. This always make the topobathy COG in the same projection as the model."""
 
         # Get the bounds of the grid
@@ -1540,14 +1685,18 @@ class QuadtreeMesh:
 
         xx = np.arange(x0, x1, dx) + 0.5 * dx
         yy = np.arange(y1, y0, -dx) - 0.5 * dx
-        zz = np.empty((len(yy), len(xx),), dtype=np.float32)
+        zz = np.empty(
+            (
+                len(yy),
+                len(xx),
+            ),
+            dtype=np.float32,
+        )
 
         xx, yy = np.meshgrid(xx, yy)
-        zz = bathymetry_database.get_bathymetry_on_points(xx,
-                                                          yy,
-                                                          dx,
-                                                          self.crs,
-                                                          bathymetry_sets)
+        zz = bathymetry_database.get_bathymetry_on_points(
+            xx, yy, dx, self.crs, bathymetry_sets
+        )
 
         # And now to cog (use -999 as the nodata value)
         with rasterio.open(
@@ -1565,7 +1714,7 @@ class QuadtreeMesh:
             dst.write(zz, 1)
 
     def make_index_cog(self, filename, filename_topobathy):
-    # def make_index_cog(self, filename, dx=10.0):
+        # def make_index_cog(self, filename, dx=10.0):
         """Make a COG file with indices of the quadtree grid cells."""
 
         # Read coordinates from topobathy file
@@ -1617,7 +1766,13 @@ class QuadtreeMesh:
 
         xx = np.arange(x0, x1, dx) + 0.5 * dx
         yy = np.arange(y1, y0, -dx) - 0.5 * dx
-        ii = np.empty((len(yy), len(xx),), dtype=np.uint32)
+        ii = np.empty(
+            (
+                len(yy),
+                len(xx),
+            ),
+            dtype=np.uint32,
+        )
 
         # # Create empty ds
         # ds = xr.Dataset(
@@ -1638,7 +1793,7 @@ class QuadtreeMesh:
         indices[np.where(indices == -999)] = nodata
 
         # Fill the array with indices
-        ii[:, :] = indices        
+        ii[:, :] = indices
 
         # # Write first to netcdf
         # ds.to_netcdf("index.nc")
@@ -1661,15 +1816,23 @@ class QuadtreeMesh:
 
 
 class QuadtreeMask:
-    def __init__(self, xuds, mask_name="mask"):
-        """
-        Initialize the QuadtreeMask with an xugrid dataset and a mask name.
-        
-        Parameters
-        ----------
-        xugrid_dataset : xu.UgridDataset
-            The xugrid dataset containing the grid and mask.
-        """
+    """
+    Per-cell activity mask for a HurryWave quadtree grid.
+
+    Stores mask values (0 = inactive, 1 = active, 2 = open boundary) and
+    provides methods to set mask regions from depth thresholds and polygons,
+    query boundary-cell existence, and render datashader overlays.
+
+    Parameters
+    ----------
+    xuds : xu.UgridDataset or None
+        Xugrid dataset containing the grid.  When ``None`` initialisation
+        is deferred (empty grid case).
+    mask_name : str, optional
+        Name of the mask variable within *xuds*.  Default is ``"mask"``.
+    """
+
+    def __init__(self, xuds, mask_name: str = "mask") -> None:
         self.xuds = xuds
         self.mask_name = mask_name
         self.datashader_dataframe = pd.DataFrame()
@@ -1694,21 +1857,25 @@ class QuadtreeMask:
         nr_cells = self.xuds.sizes["mesh2d_nFaces"]
 
         # Set all to zero
-        self.xuds[mask_name] = xr.DataArray(data=np.zeros(nr_cells, dtype=np.int8), dims=["mesh2d_nFaces"])
+        self.xuds[mask_name] = xr.DataArray(
+            data=np.zeros(nr_cells, dtype=np.int8), dims=["mesh2d_nFaces"]
+        )
 
     def set_to_zero(self):
         """Set all mask values to zero"""
         nr_cells = self.xuds.sizes["mesh2d_nFaces"]
-        self.xuds[self.mask_name] = xr.DataArray(data=np.zeros(nr_cells, dtype=np.int8), dims=["mesh2d_nFaces"])
+        self.xuds[self.mask_name] = xr.DataArray(
+            data=np.zeros(nr_cells, dtype=np.int8), dims=["mesh2d_nFaces"]
+        )
 
     def set_global(self, zmin, zmax, mask_value):
 
         mask = self.xuds[self.mask_name].values[:]
         z = self.xuds["z"].values[:]
 
-        if z is not None:                
+        if z is not None:
             # Set initial mask based on zmin and zmax
-            iok = np.where((z>=zmin) & (z<=zmax))
+            iok = np.where((z >= zmin) & (z <= zmax))
             mask[iok] = mask_value
         else:
             # No data so set all to 0
@@ -1722,14 +1889,14 @@ class QuadtreeMask:
             return
 
         xy = self.xuds.grid.face_coordinates
-        x    = xy[:,0]
-        y    = xy[:,1]
-        z    = self.xuds["z"].values[:]
+        x = xy[:, 0]
+        y = xy[:, 1]
+        z = self.xuds["z"].values[:]
         mask = self.xuds[self.mask_name].values[:]
 
         for ip, polygon in polygon.iterrows():
             inpol = inpolygon(x, y, polygon["geometry"])
-            iok   = np.where((inpol) & (z>=zmin) & (z<=zmax))
+            iok = np.where((inpol) & (z >= zmin) & (z <= zmax))
             mask[iok] = mask_value
 
         self.xuds[self.mask_name] = xr.DataArray(data=mask, dims=["mesh2d_nFaces"])
@@ -1741,24 +1908,24 @@ class QuadtreeMask:
             return
 
         xy = self.xuds.grid.face_coordinates
-        x    = xy[:,0]
-        y    = xy[:,1]
-        z    = self.xuds["z"].values[:]
+        x = xy[:, 0]
+        y = xy[:, 1]
+        z = self.xuds["z"].values[:]
         mask = self.xuds[self.mask_name].values[:]
 
         # Indices are 1-based in SFINCS so subtract 1 for python 0-based indexing
-        mu    = self.xuds["mu"].values[:]
-        mu1   = self.xuds["mu1"].values[:] - 1
-        mu2   = self.xuds["mu2"].values[:] - 1
-        nu    = self.xuds["nu"].values[:]
-        nu1   = self.xuds["nu1"].values[:] - 1
-        nu2   = self.xuds["nu2"].values[:] - 1
-        md    = self.xuds["md"].values[:]
-        md1   = self.xuds["md1"].values[:] - 1
-        md2   = self.xuds["md2"].values[:] - 1
-        nd    = self.xuds["nd"].values[:]
-        nd1   = self.xuds["nd1"].values[:] - 1
-        nd2   = self.xuds["nd2"].values[:] - 1
+        mu = self.xuds["mu"].values[:]
+        mu1 = self.xuds["mu1"].values[:] - 1
+        mu2 = self.xuds["mu2"].values[:] - 1
+        nu = self.xuds["nu"].values[:]
+        nu1 = self.xuds["nu1"].values[:] - 1
+        nu2 = self.xuds["nu2"].values[:] - 1
+        md = self.xuds["md"].values[:]
+        md1 = self.xuds["md1"].values[:] - 1
+        md2 = self.xuds["md2"].values[:] - 1
+        nd = self.xuds["nd"].values[:]
+        nd1 = self.xuds["nd1"].values[:] - 1
+        nd2 = self.xuds["nd2"].values[:] - 1
 
         for ip, polygon in polygon.iterrows():
             inpol = inpolygon(x, y, polygon["geometry"])
@@ -1767,16 +1934,16 @@ class QuadtreeMask:
             # 2) Have a mask > 0
             # 3) z>=zmin
             # 4) z<=zmax
-            iok   = np.where((inpol) & (mask>0) & (z>=zmin) & (z<=zmax))
+            iok = np.where((inpol) & (mask > 0) & (z >= zmin) & (z <= zmax))
             for ic in iok[0]:
                 okay = False
                 # Check neighbors, cell must have at least one inactive neighbor
                 # Left
-                if md[ic]<=0:
+                if md[ic] <= 0:
                     # Coarser or equal to the left
-                    if md1[ic]>=0:
+                    if md1[ic] >= 0:
                         # Cell has neighbor to the left
-                        if mask[md1[ic]]==0:
+                        if mask[md1[ic]] == 0:
                             # And it's inactive
                             okay = True
                     else:
@@ -1784,29 +1951,29 @@ class QuadtreeMask:
                         okay = True
                 else:
                     # Finer to the left
-                    if md1[ic]>=0:
+                    if md1[ic] >= 0:
                         # Cell has neighbor to the left
-                        if mask[md1[ic]]==0:
+                        if mask[md1[ic]] == 0:
                             # And it's inactive
                             okay = True
                     else:
                         # No neighbor, so set mask = 2
                         okay = True
-                    if md2[ic]>=0:
+                    if md2[ic] >= 0:
                         # Cell has neighbor to the left
-                        if mask[md2[ic]]==0:
+                        if mask[md2[ic]] == 0:
                             # And it's inactive
                             okay = True
                     else:
                         # No neighbor, so set mask = 2
                         okay = True
-                    
+
                 # Below
-                if nd[ic]<=0:
+                if nd[ic] <= 0:
                     # Coarser or equal below
-                    if nd1[ic]>=0:
+                    if nd1[ic] >= 0:
                         # Cell has neighbor below
-                        if mask[nd1[ic]]==0:
+                        if mask[nd1[ic]] == 0:
                             # And it's inactive
                             okay = True
                     else:
@@ -1814,17 +1981,17 @@ class QuadtreeMask:
                         okay = True
                 else:
                     # Finer below
-                    if nd1[ic]>=0:
+                    if nd1[ic] >= 0:
                         # Cell has neighbor below
-                        if mask[nd1[ic]]==0:
+                        if mask[nd1[ic]] == 0:
                             # And it's inactive
                             okay = True
                     else:
                         # No neighbor, so set mask = 2
                         okay = True
-                    if nd2[ic]>=0:
+                    if nd2[ic] >= 0:
                         # Cell has neighbor below
-                        if mask[nd2[ic]]==0:
+                        if mask[nd2[ic]] == 0:
                             # And it's inactive
                             okay = True
                     else:
@@ -1832,11 +1999,11 @@ class QuadtreeMask:
                         okay = True
 
                 # Right
-                if mu[ic]<=0:
+                if mu[ic] <= 0:
                     # Coarser or equal to the right
-                    if mu1[ic]>=0:
+                    if mu1[ic] >= 0:
                         # Cell has neighbor to the right
-                        if mask[mu1[ic]]==0:
+                        if mask[mu1[ic]] == 0:
                             # And it's inactive
                             okay = True
                     else:
@@ -1844,17 +2011,17 @@ class QuadtreeMask:
                         okay = True
                 else:
                     # Finer to the left
-                    if mu1[ic]>=0:
+                    if mu1[ic] >= 0:
                         # Cell has neighbor to the right
-                        if mask[mu1[ic]]==0:
+                        if mask[mu1[ic]] == 0:
                             # And it's inactive
                             okay = True
                     else:
                         # No neighbor, so set mask = 2
                         okay = True
-                    if mu2[ic]>=0:
+                    if mu2[ic] >= 0:
                         # Cell has neighbor to the right
-                        if mask[mu2[ic]]==0:
+                        if mask[mu2[ic]] == 0:
                             # And it's inactive
                             okay = True
                     else:
@@ -1862,11 +2029,11 @@ class QuadtreeMask:
                         okay = True
 
                 # Above
-                if nu[ic]<=0:
+                if nu[ic] <= 0:
                     # Coarser or equal above
-                    if nu1[ic]>=0:
+                    if nu1[ic] >= 0:
                         # Cell has neighbor above
-                        if mask[nu1[ic]]==0:
+                        if mask[nu1[ic]] == 0:
                             # And it's inactive
                             okay = True
                     else:
@@ -1874,23 +2041,23 @@ class QuadtreeMask:
                         okay = True
                 else:
                     # Finer below
-                    if nu1[ic]>=0:
+                    if nu1[ic] >= 0:
                         # Cell has neighbor above
-                        if mask[nu1[ic]]==0:
+                        if mask[nu1[ic]] == 0:
                             # And it's inactive
                             okay = True
                     else:
                         # No neighbor, so set mask = 2
                         okay = True
-                    if nu2[ic]>=0:
+                    if nu2[ic] >= 0:
                         # Cell has neighbor above
-                        if mask[nu2[ic]]==0:
+                        if mask[nu2[ic]] == 0:
                             # And it's inactive
                             okay = True
                     else:
                         # No neighbor, so set mask = 2
                         okay = True
-                    
+
                 if okay:
                     mask[ic] = mask_value
 
@@ -1904,10 +2071,9 @@ class QuadtreeMask:
             # Return empty geodataframe
             return gpd.GeoDataFrame()
 
-
-        xz = self.xuds.grid.face_coordinates[:,0]
-        yz = self.xuds.grid.face_coordinates[:,1]
-        mask = self.xuds[self.mask_name].values[:] 
+        xz = self.xuds.grid.face_coordinates[:, 0]
+        yz = self.xuds.grid.face_coordinates[:, 1]
+        mask = self.xuds[self.mask_name].values[:]
 
         gdf_list = []
         okay = np.zeros(mask.shape, dtype=int)
@@ -1944,16 +2110,16 @@ class QuadtreeMask:
             return
 
         # Coordinates of cell centers
-        x = self.xuds.grid.face_coordinates[:,0]
-        y = self.xuds.grid.face_coordinates[:,1]
+        x = self.xuds.grid.face_coordinates[:, 0]
+        y = self.xuds.grid.face_coordinates[:, 1]
         # Check if grid crosses the dateline
         cross_dateline = False
         if self.crs.is_geographic:
             if np.max(x) > 180.0:
                 cross_dateline = True
-        mask = self.xuds[self.mask_name].values[:] 
+        mask = self.xuds[self.mask_name].values[:]
         # Get rid of cells with mask = 0
-        iok = np.where(mask>0)
+        iok = np.where(mask > 0)
         x = x[iok]
         y = y[iok]
         mask = mask[iok]
@@ -1962,9 +2128,7 @@ class QuadtreeMask:
             self.datashader_dataframe = pd.DataFrame()
             return
         # Transform all to 3857 (web mercator)
-        transformer = Transformer.from_crs(self.crs,
-                                            3857,
-                                            always_xy=True)
+        transformer = Transformer.from_crs(self.crs, 3857, always_xy=True)
         x, y = transformer.transform(x, y)
         if cross_dateline:
             x[x < 0] += 40075016.68557849
@@ -1975,35 +2139,34 @@ class QuadtreeMask:
         """Clear the datashader dataframe"""
         self.datashader_dataframe = pd.DataFrame()
 
-    def map_overlay(self,
-                    file_name,
-                    xlim=None,
-                    ylim=None,
-                    active_color="yellow",
-                    boundary_color="red",
-                    downstream_color="blue",
-                    neumann_color="purple",
-                    outflow_color="green",
-                    px=2,
-                    width=800):
+    def map_overlay(
+        self,
+        file_name,
+        xlim=None,
+        ylim=None,
+        active_color="yellow",
+        boundary_color="red",
+        downstream_color="blue",
+        neumann_color="purple",
+        outflow_color="green",
+        px=2,
+        width=800,
+    ):
 
         if self.xuds is None:
             # No mask points (yet)
             return False
 
         try:
-
             # Check if datashader dataframe is empty (maybe it was not made yet, or it was cleared)
             if self.datashader_dataframe.empty:
                 self.get_datashader_dataframe()
 
-            # If it is still empty (because there are no active cells), return False    
+            # If it is still empty (because there are no active cells), return False
             if self.datashader_dataframe.empty:
                 return False
 
-            transformer = Transformer.from_crs(4326,
-                                        3857,
-                                        always_xy=True)
+            transformer = Transformer.from_crs(4326, 3857, always_xy=True)
             xl0, yl0 = transformer.transform(xlim[0], ylim[0])
             xl1, yl1 = transformer.transform(xlim[1], ylim[1])
             if xl0 > xl1:
@@ -2013,22 +2176,39 @@ class QuadtreeMask:
             ratio = (ylim[1] - ylim[0]) / (xlim[1] - xlim[0])
             height = int(width * ratio)
 
-            cvs = ds.Canvas(x_range=xlim, y_range=ylim, plot_height=height, plot_width=width)
+            cvs = ds.Canvas(
+                x_range=xlim, y_range=ylim, plot_height=height, plot_width=width
+            )
 
-            # Should update colors at some point. Now SFINCS specific, but it should work for HurryWave and SnapWave as well. 
+            # Should update colors at some point. Now SFINCS specific, but it should work for HurryWave and SnapWave as well.
 
             # Instead, we can create separate images for each mask and stack them
-            dfact = self.datashader_dataframe[self.datashader_dataframe["mask"]==1]
-            dfbnd = self.datashader_dataframe[self.datashader_dataframe["mask"]==2]
-            dfout = self.datashader_dataframe[self.datashader_dataframe["mask"]==3]
-            dfneu = self.datashader_dataframe[self.datashader_dataframe["mask"]==5]
-            dfdwn = self.datashader_dataframe[self.datashader_dataframe["mask"]==6]
-            img_a = tf.shade(tf.spread(cvs.points(dfact, 'x', 'y', ds.any()), px=px), cmap=active_color)
-            img_b = tf.shade(tf.spread(cvs.points(dfbnd, 'x', 'y', ds.any()), px=px), cmap=boundary_color)
-            img_o = tf.shade(tf.spread(cvs.points(dfout, 'x', 'y', ds.any()), px=px), cmap=outflow_color)
-            img_n = tf.shade(tf.spread(cvs.points(dfneu, 'x', 'y', ds.any()), px=px), cmap=neumann_color)
-            img_d = tf.shade(tf.spread(cvs.points(dfdwn, 'x', 'y', ds.any()), px=px), cmap=downstream_color)
-            img   = tf.stack(img_a, img_b, img_o, img_n, img_d)
+            dfact = self.datashader_dataframe[self.datashader_dataframe["mask"] == 1]
+            dfbnd = self.datashader_dataframe[self.datashader_dataframe["mask"] == 2]
+            dfout = self.datashader_dataframe[self.datashader_dataframe["mask"] == 3]
+            dfneu = self.datashader_dataframe[self.datashader_dataframe["mask"] == 5]
+            dfdwn = self.datashader_dataframe[self.datashader_dataframe["mask"] == 6]
+            img_a = tf.shade(
+                tf.spread(cvs.points(dfact, "x", "y", ds.any()), px=px),
+                cmap=active_color,
+            )
+            img_b = tf.shade(
+                tf.spread(cvs.points(dfbnd, "x", "y", ds.any()), px=px),
+                cmap=boundary_color,
+            )
+            img_o = tf.shade(
+                tf.spread(cvs.points(dfout, "x", "y", ds.any()), px=px),
+                cmap=outflow_color,
+            )
+            img_n = tf.shade(
+                tf.spread(cvs.points(dfneu, "x", "y", ds.any()), px=px),
+                cmap=neumann_color,
+            )
+            img_d = tf.shade(
+                tf.spread(cvs.points(dfdwn, "x", "y", ds.any()), px=px),
+                cmap=downstream_color,
+            )
+            img = tf.stack(img_a, img_b, img_o, img_n, img_d)
 
             path = os.path.dirname(file_name)
             if not path:
@@ -2044,15 +2224,17 @@ class QuadtreeMask:
 
 
 class QuadtreeBathymetry:
-    def __init__(self, xuds):
-        """
-        Initialize the QuadtreeBathymetry with an xugrid dataset.
-        
-        Parameters
-        ----------
-        xugrid_dataset : xu.UgridDataset
-            The xugrid dataset containing the grid and mask.
-        """
+    """
+    Datashader visualisation helper for quadtree bathymetry.
+
+    Parameters
+    ----------
+    xuds : xu.UgridDataset or None
+        Xugrid dataset containing the grid and ``z`` variable.  When
+        ``None`` initialisation is deferred (empty grid case).
+    """
+
+    def __init__(self, xuds) -> None:
         self.xuds = xuds
         self.datashader_dataframe = pd.DataFrame()
 
@@ -2075,9 +2257,9 @@ class QuadtreeBathymetry:
     def get_datashader_dataframe(self):
         """Create a dataframe with points elements for use with datashader"""
         # Coordinates of cell centers
-        x = self.xuds.grid.face_coordinates[:,0]
-        y = self.xuds.grid.face_coordinates[:,1]
-        z = self.xuds["z"].values[:] 
+        x = self.xuds.grid.face_coordinates[:, 0]
+        y = self.xuds.grid.face_coordinates[:, 1]
+        z = self.xuds["z"].values[:]
         # Check if grid crosses the dateline
         cross_dateline = False
         if self.crs.is_geographic:
@@ -2093,9 +2275,7 @@ class QuadtreeBathymetry:
             self.datashader_dataframe = pd.DataFrame()
             return
         # Transform all to 3857 (web mercator)
-        transformer = Transformer.from_crs(self.crs,
-                                            3857,
-                                            always_xy=True)
+        transformer = Transformer.from_crs(self.crs, 3857, always_xy=True)
         x, y = transformer.transform(x, y)
         if cross_dateline:
             x[x < 0] += 40075016.68557849
@@ -2106,35 +2286,34 @@ class QuadtreeBathymetry:
         """Clear the datashader dataframe"""
         self.datashader_dataframe = pd.DataFrame()
 
-    def map_overlay(self,
-                    file_name,
-                    xlim=None,
-                    ylim=None,
-                    active_color="yellow",
-                    boundary_color="red",
-                    downstream_color="blue",
-                    neumann_color="purple",
-                    outflow_color="green",
-                    px=2,
-                    width=800):
+    def map_overlay(
+        self,
+        file_name,
+        xlim=None,
+        ylim=None,
+        active_color="yellow",
+        boundary_color="red",
+        downstream_color="blue",
+        neumann_color="purple",
+        outflow_color="green",
+        px=2,
+        width=800,
+    ):
 
         if self.xuds is None:
             # No mask points (yet)
             return False
 
         try:
-
             # Check if datashader dataframe is empty (maybe it was not made yet, or it was cleared)
             if self.datashader_dataframe.empty:
                 self.get_datashader_dataframe()
 
-            # If it is still empty (because there are no active cells), return False    
+            # If it is still empty (because there are no active cells), return False
             if self.datashader_dataframe.empty:
                 return False
 
-            transformer = Transformer.from_crs(4326,
-                                        3857,
-                                        always_xy=True)
+            transformer = Transformer.from_crs(4326, 3857, always_xy=True)
             xl0, yl0 = transformer.transform(xlim[0], ylim[0])
             xl1, yl1 = transformer.transform(xlim[1], ylim[1])
             if xl0 > xl1:
@@ -2144,22 +2323,39 @@ class QuadtreeBathymetry:
             ratio = (ylim[1] - ylim[0]) / (xlim[1] - xlim[0])
             height = int(width * ratio)
 
-            cvs = ds.Canvas(x_range=xlim, y_range=ylim, plot_height=height, plot_width=width)
+            cvs = ds.Canvas(
+                x_range=xlim, y_range=ylim, plot_height=height, plot_width=width
+            )
 
-            # Should update colors at some point. Now SFINCS specific, but it should work for HurryWave and SnapWave as well. 
+            # Should update colors at some point. Now SFINCS specific, but it should work for HurryWave and SnapWave as well.
 
             # Instead, we can create separate images for each mask and stack them
-            dfact = self.datashader_dataframe[self.datashader_dataframe["mask"]==1]
-            dfbnd = self.datashader_dataframe[self.datashader_dataframe["mask"]==2]
-            dfout = self.datashader_dataframe[self.datashader_dataframe["mask"]==3]
-            dfneu = self.datashader_dataframe[self.datashader_dataframe["mask"]==5]
-            dfdwn = self.datashader_dataframe[self.datashader_dataframe["mask"]==6]
-            img_a = tf.shade(tf.spread(cvs.points(dfact, 'x', 'y', ds.any()), px=px), cmap=active_color)
-            img_b = tf.shade(tf.spread(cvs.points(dfbnd, 'x', 'y', ds.any()), px=px), cmap=boundary_color)
-            img_o = tf.shade(tf.spread(cvs.points(dfout, 'x', 'y', ds.any()), px=px), cmap=outflow_color)
-            img_n = tf.shade(tf.spread(cvs.points(dfneu, 'x', 'y', ds.any()), px=px), cmap=neumann_color)
-            img_d = tf.shade(tf.spread(cvs.points(dfdwn, 'x', 'y', ds.any()), px=px), cmap=downstream_color)
-            img   = tf.stack(img_a, img_b, img_o, img_n, img_d)
+            dfact = self.datashader_dataframe[self.datashader_dataframe["mask"] == 1]
+            dfbnd = self.datashader_dataframe[self.datashader_dataframe["mask"] == 2]
+            dfout = self.datashader_dataframe[self.datashader_dataframe["mask"] == 3]
+            dfneu = self.datashader_dataframe[self.datashader_dataframe["mask"] == 5]
+            dfdwn = self.datashader_dataframe[self.datashader_dataframe["mask"] == 6]
+            img_a = tf.shade(
+                tf.spread(cvs.points(dfact, "x", "y", ds.any()), px=px),
+                cmap=active_color,
+            )
+            img_b = tf.shade(
+                tf.spread(cvs.points(dfbnd, "x", "y", ds.any()), px=px),
+                cmap=boundary_color,
+            )
+            img_o = tf.shade(
+                tf.spread(cvs.points(dfout, "x", "y", ds.any()), px=px),
+                cmap=outflow_color,
+            )
+            img_n = tf.shade(
+                tf.spread(cvs.points(dfneu, "x", "y", ds.any()), px=px),
+                cmap=neumann_color,
+            )
+            img_d = tf.shade(
+                tf.spread(cvs.points(dfdwn, "x", "y", ds.any()), px=px),
+                cmap=downstream_color,
+            )
+            img = tf.stack(img_a, img_b, img_o, img_n, img_d)
 
             path = os.path.dirname(file_name)
             if not path:
@@ -2173,19 +2369,42 @@ class QuadtreeBathymetry:
             print(e)
             return False
 
-def odd(num):
+
+def odd(num: np.ndarray) -> np.ndarray:
+    """Return a boolean array that is ``True`` where *num* is odd."""
     return np.mod(num, 2) == 1
 
-def even(num):
+
+def even(num: np.ndarray) -> np.ndarray:
+    """Return a boolean array that is ``True`` where *num* is even."""
     return np.mod(num, 2) == 0
 
-def inpolygon(xq, yq, poly):
+
+def inpolygon(xq: np.ndarray, yq: np.ndarray, poly) -> np.ndarray:
+    """
+    Test whether query points lie inside a shapely polygon (vectorised).
+
+    Parameters
+    ----------
+    xq : numpy.ndarray
+        X-coordinates of query points.
+    yq : numpy.ndarray
+        Y-coordinates of query points.
+    poly : shapely.geometry.Polygon
+        Test polygon.
+
+    Returns
+    -------
+    numpy.ndarray of bool
+        Boolean array with the same shape as *xq*.
+    """
     coords = np.column_stack((xq.ravel(), yq.ravel()))
     pts = shapely.points(coords)
-    inside = shapely.contains(poly, pts)   # vectorized
+    inside = shapely.contains(poly, pts)
     return inside.reshape(xq.shape)
 
-# def inpolygon(xq, yq, p): # p is a Polygon object, xq and yq are arrays of x and y coordinates  
+
+# def inpolygon(xq, yq, p): # p is a Polygon object, xq and yq are arrays of x and y coordinates
 #     shape = xq.shape
 #     xq = xq.reshape(-1)
 #     yq = yq.reshape(-1)
@@ -2208,35 +2427,97 @@ def inpolygon(xq, yq, poly):
 #     # inp = inexterior(q, p, inp)
 #     return inp.reshape(shape)
 
-def binary_search(val_array, vals):    
-    indx = np.searchsorted(val_array, vals) # ind is size of vals 
-    not_ok = np.where(indx==len(val_array))[0] # size of vals, points that are out of bounds
-    indx[np.where(indx==len(val_array))[0]] = 0 # Set to zero to avoid out of bounds error
-    is_ok = np.where(val_array[indx] == vals)[0] # size of vals
+
+def binary_search(val_array: np.ndarray, vals: np.ndarray) -> np.ndarray:
+    """
+    Vectorised binary search returning array indices.
+
+    Parameters
+    ----------
+    val_array : numpy.ndarray
+        Sorted 1-D array to search in.
+    vals : numpy.ndarray
+        Values to look up.
+
+    Returns
+    -------
+    numpy.ndarray of int
+        Zero-based indices into *val_array* for each value in *vals*, or
+        ``-1`` where a value is not found.
+    """
+    indx = np.searchsorted(val_array, vals)
+    not_ok = np.where(indx == len(val_array))[0]
+    indx[np.where(indx == len(val_array))[0]] = 0
+    is_ok = np.where(val_array[indx] == vals)[0]
     indices = np.zeros(len(vals), dtype=int) - 1
     indices[is_ok] = indx[is_ok]
     indices[not_ok] = -1
     return indices
 
-def interp2(x0, y0, z0, x1, y1, method="linear"):
-    
-    f = RegularGridInterpolator((y0, x0), z0,
-                                bounds_error=False, fill_value=np.nan, method=method)
-    # reshape x1 and y1
-    if x1.ndim>1:
+
+def interp2(
+    x0: np.ndarray,
+    y0: np.ndarray,
+    z0: np.ndarray,
+    x1: np.ndarray,
+    y1: np.ndarray,
+    method: str = "linear",
+) -> np.ndarray:
+    """
+    Bilinear interpolation from a regular grid onto scattered points.
+
+    Parameters
+    ----------
+    x0 : numpy.ndarray
+        1-D source x-coordinates.
+    y0 : numpy.ndarray
+        1-D source y-coordinates.
+    z0 : numpy.ndarray
+        2-D source values, shape ``(len(y0), len(x0))``.
+    x1 : numpy.ndarray
+        Target x-coordinates (1-D or 2-D).
+    y1 : numpy.ndarray
+        Target y-coordinates (same shape as *x1*).
+    method : str, optional
+        Interpolation method.  Default is ``"linear"``.
+
+    Returns
+    -------
+    numpy.ndarray
+        Interpolated values, same shape as *x1*.
+    """
+    f = RegularGridInterpolator(
+        (y0, x0), z0, bounds_error=False, fill_value=np.nan, method=method
+    )
+    if x1.ndim > 1:
         sz = x1.shape
-        x1 = x1.reshape(sz[0]*sz[1])
-        y1 = y1.reshape(sz[0]*sz[1])    
-        # interpolate
-        z1 = f((y1,x1)).reshape(sz)        
-    else:    
-        z1 = f((y1,x1))
-    
+        x1 = x1.reshape(sz[0] * sz[1])
+        y1 = y1.reshape(sz[0] * sz[1])
+        z1 = f((y1, x1)).reshape(sz)
+    else:
+        z1 = f((y1, x1))
+
     return z1
 
-def grid_in_polygon(x, y, p):
 
-    # Dimensions of the cells
+def grid_in_polygon(x: np.ndarray, y: np.ndarray, p) -> np.ndarray:
+    """
+    Test whether grid cells (defined by corner coordinates) intersect a polygon.
+
+    Parameters
+    ----------
+    x : numpy.ndarray
+        2-D array of corner x-coordinates, shape ``(rows+1, cols+1)``.
+    y : numpy.ndarray
+        2-D array of corner y-coordinates, same shape as *x*.
+    p : shapely.geometry.Polygon
+        Test polygon.
+
+    Returns
+    -------
+    numpy.ndarray of bool
+        Shape ``(rows, cols)`` — ``True`` where a cell intersects *p*.
+    """
     rows, cols = x.shape[0] - 1, x.shape[1] - 1
 
     # Create polygons for each cell
@@ -2250,10 +2531,12 @@ def grid_in_polygon(x, y, p):
     y4 = y[1:, :-1].flatten()
 
     # Prepare the list of cell polygons
-    cell_polygons = np.array([
-        Polygon([(x1[i], y1[i]), (x3[i], y3[i]), (x2[i], y2[i]), (x4[i], y4[i])])
-        for i in range(len(x1))
-    ])
+    cell_polygons = np.array(
+        [
+            Polygon([(x1[i], y1[i]), (x3[i], y3[i]), (x2[i], y2[i]), (x4[i], y4[i])])
+            for i in range(len(x1))
+        ]
+    )
 
     # Prepare the polygon for faster intersections
     prepared_p = prep(p)
@@ -2265,6 +2548,7 @@ def grid_in_polygon(x, y, p):
     inp = inp.reshape(rows, cols)
 
     return inp
+
 
 # def binary_search(val_array, vals):
 #     indx = np.searchsorted(val_array, vals)  # ind is size of vals
