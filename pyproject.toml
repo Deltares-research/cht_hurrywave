@@ -27,9 +27,3 @@ dependencies = [
     "cht-utils",
 ]
 
-[tool.ruff]
-line-length = 88
-
-[tool.ruff.lint]
-select = ["E", "F", "I"]
-ignore = ["E501", "PD901"]
